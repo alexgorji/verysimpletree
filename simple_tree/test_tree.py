@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from tree.tree import Tree, ChildNotFoundError
+from simple_tree.tree import Tree, ChildNotFoundError
 
 
 class A(Tree):
