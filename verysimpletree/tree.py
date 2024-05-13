@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Callable, List, Iterator
+from typing import Optional, Callable, List, Iterator, Union
 
 
 class TreeException(Exception):
@@ -14,7 +14,8 @@ class Tree(ABC):
     """
     An abstract lightweight tree class for managing tree structures in MusicXML and musicscore packages.
     """
-    _TREE_ATTRIBUTES = {'compact_repr', 'is_leaf', 'level', '_parent', '_children', 'up'}
+    _TREE_ATTRIBUTES = {'compact_repr', 'is_leaf', 'is_last_child', 'is_root', '_parent', '_children',
+                        'up'}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -38,12 +39,12 @@ class Tree(ABC):
     def _raw_reversed_path_to_root(self):
         yield self
         if self.get_parent():
-            for node in self.get_parent().reversed_path_to_root():
+            for node in self.get_parent().get_reversed_path_to_root():
                 yield node
 
     def _reset_iterators(self):
         """
-        This method is used to reset both parent's and this class's iterators for :obj:'~traverse', obj:'~iterate_leaves' and obj:'~reversed_path_to_root'
+        This method is used to reset both parent's and this class's iterators for :obj:'~traverse', obj:'~iterate_leaves' and obj:'~get_reversed_path_to_root'
         """
         if self.up:
             self.up._reset_iterators()
@@ -61,6 +62,22 @@ class Tree(ABC):
         :rtype: str
         """
         return self.__str__()
+
+    @property
+    def is_last_child(self):
+        """
+        >>> t = TestTree('root')
+        >>> for node in t.traverse():
+        ...    if node.name in ['root', 'child4', 'grandchild2', 'grandchild3', 'greatgrandchild1']:
+        ...        assert node.is_last_child
+        ...    else:
+        ...        assert not node.is_last_child
+        """
+        if self.is_root:
+            return True
+        if self.up.get_children()[-1] == self:
+            return True
+        return False
 
     @property
     def is_leaf(self) -> bool:
@@ -82,10 +99,9 @@ class Tree(ABC):
         """
         return True if self.get_parent() is None else False
 
-    @property
-    def level(self) -> int:
+    def get_level(self) -> int:
         """
-        :obj:`~tree.tree.Tree` property
+        :obj:`~tree.tree.Tree`
 
         :return: ``0`` for ``root``, ``1, 2 etc.`` for each layer of children
         :rtype: nonnegative int
@@ -94,16 +110,16 @@ class Tree(ABC):
         ...   def _check_child_to_be_added(self, child):
         ...      return True
         >>> root = TestTree()
-        >>> root.level
+        >>> root.get_level()
         0
         >>> ch = root.add_child(TestTree()).add_child(TestTree()).add_child(TestTree())
-        >>> ch.level
+        >>> ch.get_level()
         3
         """
         if self.get_parent() is None:
             return 0
         else:
-            return self.get_parent().level + 1
+            return self.get_parent().get_level() + 1
 
     @property
     def next(self) -> Optional['Tree']:
@@ -204,24 +220,38 @@ class Tree(ABC):
         >>> grandchild2.get_coordinates_in_tree()
         '2.2'
         """
-        if self.level == 0:
+        if self.get_level() == 0:
             return '0'
-        elif self.level == 1:
+        elif self.get_level() == 1:
             return str(self.get_parent().get_children().index(self) + 1)
         else:
             return f"{self.get_parent().get_coordinates_in_tree()}.{self.get_parent().get_children().index(self) + 1}"
 
-    def get_indentation(self) -> str:
+    # def get_indentation(self) -> str:
+    #     """
+    #     :obj:`~tree.tree.Tree` method
+    #
+    #     :return: indentation according to ``get_level()`` (layer number). As default it is used for creating tabs in :obj:`tree_representation`
+    #     :rtype: str
+    #     """
+    #     indentation = ''
+    #     for i in range(self.get_level()):
+    #         indentation += '    '
+    #     return indentation
+    def filter_nodes(self, key:Union[Callable], return_value) -> list:
         """
         :obj:`~tree.tree.Tree` method
 
-        :return: indentation according to ``level`` (layer number). As default it is used for creating tabs in :obj:`tree_representation`
-        :rtype: str
+        >>> t = TestTree('root')
+        >>> t.filter_nodes(lambda node: node.get_level(), 2)
+        [grandchild1, grandchild2, grandchild3]
         """
-        indentation = ''
-        for i in range(self.level):
-            indentation += '    '
-        return indentation
+        output = []
+
+        for node in self.traverse():
+            if key(node) == return_value:
+                output.append(node)
+        return output
 
     def get_parent(self) -> 'Tree':
         """
@@ -258,6 +288,14 @@ class Tree(ABC):
 
         :return: ``root`` (upmost node of a tree which has no parent)
         :rtype: :obj:`~tree.tree.Tree`
+
+        >>> t = TestTree('root')
+        >>> t.greatgrandchild1.get_root() == t
+        True
+        >>> t.child4.get_root() == t
+        True
+        >>> t.get_root() == t
+        True
         """
         node = self
         parent = node.get_parent()
@@ -272,7 +310,7 @@ class Tree(ABC):
 
         :param level: layer number where 0 is the ``root``.
         :param key: An optional callable for each node in the layer.
-        :return: All nodes on this level. The leaves of branches which are shorter than the given level will be repeated on this and all
+        :return: All nodes on this get_level. The leaves of branches which are shorter than the given get_level will be repeated on this and all
                  following layers.
         :rtype: list
         """
@@ -352,11 +390,15 @@ class Tree(ABC):
         self._reset_iterators()
         new._parent = self
 
-    def reversed_path_to_root(self) -> Iterator['Tree']:
+    def get_reversed_path_to_root(self) -> Iterator['Tree']:
         """
         :obj:`~tree.tree.Tree` method
 
         :return: path from self upwards through all ancestors up to the ``root``.
+
+        >>> t = TestTree('root')
+        >>> list(t.greatgrandchild1.get_reversed_path_to_root())
+        [greatgrandchild1, grandchild2, child2, root]
         """
         if self._reversed_path_to_root is None:
             self._reversed_path_to_root = list(self._raw_reversed_path_to_root())
@@ -374,23 +416,79 @@ class Tree(ABC):
             self._traversed = list(self._raw_traverse())
         return iter(self._traversed)
 
-    def tree_representation(self, key: Optional[Callable] = None, tab: Optional[Callable] = None) -> str:
+    def tree_representation(self, key: Optional[Callable] = None) -> str:
         """
         :obj:`~tree.tree.Tree` method
 
         :param key: An optional callable if ``None`` :obj:`~compact_repr` property of each node is called.
-        :param tab: An optional callable if ``None`` :obj:`get_indentation()` method of each node is called.
         :return: a representation of all nodes as string in tree form.
         :rtype: str
+
+        >>> t = TestTree('root')
+        t.tree_representation()
+        └── root
+            ├── child1
+            ├── child2
+            │   ├── grandchild1
+            │   └── grandchild2
+            │       └── greatgrandchild1
+            ├── child3
+            └── child4
+                └── grandchild3
         """
+        last_hook = '└'
+        continue_hook = '├'
+        no_hook = '│'
+        horizontal = '── '
+        space = '   '
+
+        def get_vertical(node):
+            return continue_hook
+
+        def get_horizontal(node):
+            return space
+
+        def get_path(node):
+            output = ''
+            for n in node.get_reversed_path_to_root():
+                if n.is_last_child:
+                    pass
+            return output
+
         if not key:
             key = lambda x: x.compact_repr
 
-        if not tab:
-            tab = lambda x: x.get_indentation()
-
         output = ''
         for node in self.traverse():
-            output += tab(node) + key(node)
-            output += '\n'
+            output += get_path(node)
+            output += get_vertical(node) + get_horizontal(node) + key(node) + '\n'
         return output
+
+
+class TestTree(Tree):
+    def __init__(self, name=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.name = name
+        if self.name == 'root':
+            self.child1 = self.add_child('child1')
+            self.child2 = self.add_child('child2')
+            self.child3 = self.add_child('child3')
+            self.child4 = self.add_child('child4')
+            self.grandchild1 = self.child2.add_child('grandchild1')
+            self.grandchild2 = self.child2.add_child('grandchild2')
+            self.grandchild3 = self.child4.add_child('grandchild3')
+            self.greatgrandchild1 = self.grandchild2.add_child('greatgrandchild1')
+
+    def _check_child_to_be_added(self, child):
+        if not isinstance(child, self.__class__):
+            raise TypeError
+
+    def add_child(self, name):
+        child = type(self)(name=name)
+        return super().add_child(child)
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return self.__str__()

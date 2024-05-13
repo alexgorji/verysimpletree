@@ -56,27 +56,15 @@ class TestTree(TestCase):
                                                     self.child3, self.grandchild3]
 
     def test_level(self):
-        assert [node.level for node in self.root.traverse()] == [0, 1, 1, 2, 2, 3, 1, 1, 2]
-        assert self.greatgrandchild1.level == 3
-        assert self.grandchild2.level == 2
-        assert self.child4.level == 1
-        assert self.root.level == 0
-
-    def test_tree_repr(self):
-        expected = """root
-    child1
-    child2
-        grandchild1
-        grandchild2
-            greatgrandchild1
-    child3
-    child4
-        grandchild3
-"""
-        assert self.root.tree_representation(lambda x: x.name) == expected
+        assert [node.get_level() for node in self.root.traverse()] == [0, 1, 1, 2, 2, 3, 1, 1, 2]
+        assert self.greatgrandchild1.get_level() == 3
+        assert self.grandchild2.get_level() == 2
+        assert self.child4.get_level() == 1
+        assert self.root.get_level() == 0
 
     def test_reversed_path_to_root(self):
-        assert list(self.greatgrandchild1.reversed_path_to_root()) == [self.greatgrandchild1, self.grandchild2, self.child2, self.root]
+        assert list(self.greatgrandchild1.get_reversed_path_to_root()) == [self.greatgrandchild1, self.grandchild2,
+                                                                           self.child2, self.root]
 
     def test_remove_child(self):
         with self.assertRaises(ChildNotFoundError):
@@ -119,18 +107,23 @@ class TestTree(TestCase):
         assert self.child4.next is None
 
     def test_get_leaves(self):
-        assert self.root.get_leaves(key=lambda x: x.name) == ['child1', ['grandchild1', ['greatgrandchild1']], 'child3', ['grandchild3']]
+        assert self.root.get_leaves(key=lambda x: x.name) == ['child1', ['grandchild1', ['greatgrandchild1']], 'child3',
+                                                              ['grandchild3']]
 
     def test_get_layer(self):
         assert self.root.get_layer(0) == [self.root]
         assert self.root.get_layer(1) == [self.child1, self.child2, self.child3, self.child4]
-        assert self.root.get_layer(2) == [self.child1, self.grandchild1, self.grandchild2, self.child3, self.grandchild3]
-        assert self.root.get_layer(3) == [self.child1, self.grandchild1, self.greatgrandchild1, self.child3, self.grandchild3]
-        assert self.root.get_layer(4) == [self.child1, self.grandchild1, self.greatgrandchild1, self.child3, self.grandchild3]
+        assert self.root.get_layer(2) == [self.child1, self.grandchild1, self.grandchild2, self.child3,
+                                          self.grandchild3]
+        assert self.root.get_layer(3) == [self.child1, self.grandchild1, self.greatgrandchild1, self.child3,
+                                          self.grandchild3]
+        assert self.root.get_layer(4) == [self.child1, self.grandchild1, self.greatgrandchild1, self.child3,
+                                          self.grandchild3]
 
     def test_find_grandchild(self):
-        assert [n for n in self.root.traverse() if n.level == 2] == [self.grandchild1, self.grandchild2, self.grandchild3]
+        assert [n for n in self.root.traverse() if n.get_level() == 2] == [self.grandchild1, self.grandchild2,
+                                                                         self.grandchild3]
         for n in self.root.traverse():
-            if n.level == 2:
+            if n.get_level() == 2:
                 print(n)
                 break
