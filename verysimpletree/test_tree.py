@@ -37,6 +37,14 @@ class TestTree(TestCase):
         self.grandchild3 = self.child4.add_child('grandchild3')
         self.greatgrandchild1 = self.grandchild2.add_child('greatgrandchild1')
 
+    def test_is_last_child(self):
+        t = self.root
+        for node in t.traverse():
+            if node.name in ['root', 'child4', 'grandchild2', 'grandchild3', 'greatgrandchild1']:
+                assert node.is_last_child
+            else:
+                assert not node.is_last_child
+
     def test_get_root(self):
         assert self.greatgrandchild1.get_root() == self.root
         assert self.child4.get_root() == self.root
@@ -122,7 +130,7 @@ class TestTree(TestCase):
 
     def test_find_grandchild(self):
         assert [n for n in self.root.traverse() if n.get_level() == 2] == [self.grandchild1, self.grandchild2,
-                                                                         self.grandchild3]
+                                                                           self.grandchild3]
         for n in self.root.traverse():
             if n.get_level() == 2:
                 print(n)

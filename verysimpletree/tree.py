@@ -53,17 +53,6 @@ class Tree(ABC):
         self._reversed_path_to_root = None
 
     @property
-    def compact_repr(self) -> str:
-        """
-        :obj:`~tree.tree.Tree` property
-
-        :return: compact representation of a node. Default is the string representation. This property is used as default in the :obj:`~tree_representation` method and can be
-                 customized in subclasses to get the most appropriate representation.
-        :rtype: str
-        """
-        return self.__str__()
-
-    @property
     def is_last_child(self):
         """
         >>> t = TestTree('root')
@@ -106,14 +95,14 @@ class Tree(ABC):
         :return: ``0`` for ``root``, ``1, 2 etc.`` for each layer of children
         :rtype: nonnegative int
 
-        >>> class TestTree(Tree):
-        ...   def _check_child_to_be_added(self, child):
-        ...      return True
-        >>> root = TestTree()
-        >>> root.get_level()
+        >>> t = TestTree('root')
+        >>> t.get_level()
         0
-        >>> ch = root.add_child(TestTree()).add_child(TestTree()).add_child(TestTree())
-        >>> ch.get_level()
+        >>> t.child1.get_level()
+        1
+        >>> t.grandchild1.get_level()
+        2
+        >>> t.greatgrandchild1.get_level()
         3
         """
         if self.get_parent() is None:
@@ -201,24 +190,18 @@ class Tree(ABC):
                  of the root.
         :rtype: str
 
-        >>> class TestTree(Tree):
-        ...   def _check_child_to_be_added(self, child):
-        ...      return True
-        >>> root = TestTree()
-        >>> root.get_coordinates_in_tree()
-        '0'
-        >>> child1 = root.add_child(TestTree())
-        >>> child2 = root.add_child(TestTree())
-        >>> grandchild1 = child2.add_child(TestTree())
-        >>> grandchild2 = child2.add_child(TestTree())
-        >>> child1.get_coordinates_in_tree()
-        '1'
-        >>> child2.get_coordinates_in_tree()
-        '2'
-        >>> grandchild1.get_coordinates_in_tree()
-        '2.1'
-        >>> grandchild2.get_coordinates_in_tree()
-        '2.2'
+        >>> t = TestTree('root')
+        >>> print(t.get_tree_representation(key=lambda node: node.get_coordinates_in_tree()))
+        └── 0
+            ├── 1
+            ├── 2
+            │   ├── 2.1
+            │   └── 2.2
+            │       └── 2.2.1
+            ├── 3
+            └── 4
+                └── 4.1
+        <BLANKLINE>
         """
         if self.get_level() == 0:
             return '0'
@@ -227,18 +210,7 @@ class Tree(ABC):
         else:
             return f"{self.get_parent().get_coordinates_in_tree()}.{self.get_parent().get_children().index(self) + 1}"
 
-    # def get_indentation(self) -> str:
-    #     """
-    #     :obj:`~tree.tree.Tree` method
-    #
-    #     :return: indentation according to ``get_level()`` (layer number). As default it is used for creating tabs in :obj:`tree_representation`
-    #     :rtype: str
-    #     """
-    #     indentation = ''
-    #     for i in range(self.get_level()):
-    #         indentation += '    '
-    #     return indentation
-    def filter_nodes(self, key:Union[Callable], return_value) -> list:
+    def filter_nodes(self, key: Union[Callable], return_value) -> list:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -416,52 +388,136 @@ class Tree(ABC):
             self._traversed = list(self._raw_traverse())
         return iter(self._traversed)
 
-    def tree_representation(self, key: Optional[Callable] = None) -> str:
+    def get_tree_representation(self, key: Optional[Callable] = None, space=None) -> str:
         """
         :obj:`~tree.tree.Tree` method
 
         :param key: An optional callable if ``None`` :obj:`~compact_repr` property of each node is called.
         :return: a representation of all nodes as string in tree form.
         :rtype: str
-
         >>> t = TestTree('root')
-        t.tree_representation()
+        >>> greatgrandchild3 = t.grandchild1.add_child('greatgrandchild3')
+        >>> print(t.get_tree_representation())
         └── root
             ├── child1
             ├── child2
             │   ├── grandchild1
+            │   │   └── greatgrandchild3
             │   └── grandchild2
             │       └── greatgrandchild1
             ├── child3
             └── child4
                 └── grandchild3
+        <BLANKLINE>
         """
+        tree_representation = TreeRepresentation(tree=self)
+        if key:
+            tree_representation.key = key
+        if space:
+            tree_representation.space = space
+        return tree_representation.get_representation()
+
+
+class TreeRepresentation:
+    def __init__(self, tree: Tree, key: Callable = lambda x: str(x), space=3):
+        self._tree = None
+        self._key = None
+        self._space = None
+        self.tree = tree
+        self.key = key
+        self.space = space
+
+    @property
+    def tree(self):
+        return self._tree
+
+    @tree.setter
+    def tree(self, val):
+        if not isinstance(val, Tree):
+            raise TypeError('TreeRepresentation.space must be of type Tree')
+        self._tree = val
+
+    @property
+    def key(self) -> Optional[Callable]:
+        return self._key
+
+    @key.setter
+    def key(self, val):
+        if not callable(val):
+            raise TypeError('TreeRepresentation.key must be callable')
+        self._key = val
+
+    @property
+    def space(self):
+        return self._space
+
+    @space.setter
+    def space(self, val):
+        if not isinstance(val, int):
+            raise TypeError('TreeRepresentation.space must be of type int')
+        if val < 1:
+            raise ValueError('TreeRepresentation.space must be greater than 0')
+        self._space = val
+
+    def get_representation(self) -> str:
+        """
+        >>> t = TestTree('root')
+        >>> rep = TreeRepresentation(tree=t, key=lambda node: node.get_coordinates_in_tree())
+        >>> print(rep.get_representation())
+        └── 0
+            ├── 1
+            ├── 2
+            │   ├── 2.1
+            │   └── 2.2
+            │       └── 2.2.1
+            ├── 3
+            └── 4
+                └── 4.1
+        <BLANKLINE>
+        >>> rep = TreeRepresentation(tree=t, key=lambda node: node.get_coordinates_in_tree(), space=1)
+        >>> print(rep.get_representation())
+        └ 0
+          ├ 1
+          ├ 2
+          │ ├ 2.1
+          │ └ 2.2
+          │   └ 2.2.1
+          ├ 3
+          └ 4
+            └ 4.1
+        <BLANKLINE>
+
+        """
+
         last_hook = '└'
         continue_hook = '├'
         no_hook = '│'
-        horizontal = '── '
-        space = '   '
+        horizontal = '─'
 
-        def get_vertical(node):
+        def get_vertical():
+            if node.is_last_child:
+                return last_hook
             return continue_hook
 
-        def get_horizontal(node):
-            return space
+        def get_horizontal():
+            return (horizontal * (self.space - 1)) + ' '
 
-        def get_path(node):
-            output = ''
-            for n in node.get_reversed_path_to_root():
-                if n.is_last_child:
+        def get_path():
+            path = ''
+            for i, n in enumerate(node.get_reversed_path_to_root()):
+                if i == 0:
                     pass
-            return output
-
-        if not key:
-            key = lambda x: x.compact_repr
+                else:
+                    if n.is_last_child:
+                        path = (self.space + 1) * ' ' + path
+                    else:
+                        path = no_hook + (self.space * ' ') + path
+            return path
 
         output = ''
-        for node in self.traverse():
-            output += get_path(node)
-            output += get_vertical(node) + get_horizontal(node) + key(node) + '\n'
+        for node in self.tree.traverse():
+            output += get_path()
+            output += get_vertical() + get_horizontal() + str(self.key(node)) + '\n'
         return output
 
 
