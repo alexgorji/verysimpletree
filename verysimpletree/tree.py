@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Callable, List, Iterator, Union
+from typing import Optional, Callable, List, Iterator, Union, TypeVar, Any, Generic, cast
 
 
 class TreeException(Exception):
@@ -10,21 +10,24 @@ class ChildNotFoundError(TreeException):
     pass
 
 
-class Tree(ABC):
+_TREE_TYPE = TypeVar('_TREE_TYPE', bound='Tree')
+
+
+class Tree(ABC, Generic[_TREE_TYPE]):
     """
     An abstract lightweight tree class for managing tree structures in MusicXML and musicscore packages.
     """
     _TREE_ATTRIBUTES = {'compact_repr', 'is_leaf', 'is_last_child', 'is_root', '_parent', '_children',
                         'up'}
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._parent = None
-        self._children = []
-        self._traversed = None
-        self._is_leaf = True
-        self._iterated_leaves = None
-        self._reversed_path_to_root = None
+        self._parent: Optional['_TREE_TYPE'] = None
+        self._children: List['_TREE_TYPE'] = []
+        self._traversed: Optional[List['_TREE_TYPE']] = None
+        self._iterated_leaves: Optional[List['_TREE_TYPE']] = None
+        self._reversed_path_to_root: Optional[List['_TREE_TYPE']] = None
+        self._is_leaf: bool = True
 
     @abstractmethod
     def _check_child_to_be_added(self, child):
@@ -105,13 +108,14 @@ class Tree(ABC):
         >>> t.greatgrandchild1.get_level()
         3
         """
-        if self.get_parent() is None:
+        parent = self.get_parent()
+        if parent is None:
             return 0
         else:
-            return self.get_parent().get_level() + 1
+            return parent.get_level() + 1
 
     @property
-    def next(self) -> Optional['Tree']:
+    def next(self: '_TREE_TYPE') -> Optional['_TREE_TYPE']:
         """
         :obj:`~tree.tree.Tree` property
 
@@ -124,7 +128,7 @@ class Tree(ABC):
             return None
 
     @property
-    def previous(self) -> Optional['Tree']:
+    def previous(self: '_TREE_TYPE') -> Optional['_TREE_TYPE']:
         """
         :obj:`~tree.tree.Tree` property
 
@@ -137,7 +141,7 @@ class Tree(ABC):
             return None
 
     @property
-    def up(self) -> 'Tree':
+    def up(self: '_TREE_TYPE') -> Optional[_TREE_TYPE]:
         """
         :obj:`~tree.tree.Tree` property
 
@@ -146,7 +150,7 @@ class Tree(ABC):
         """
         return self.get_parent()
 
-    def add_child(self, child: 'Tree') -> 'Tree':
+    def add_child(self, child: '_TREE_TYPE') -> 'Tree':
         """
         :obj:`~tree.tree.Tree` method
 
@@ -164,23 +168,22 @@ class Tree(ABC):
             self._is_leaf = False
         return child
 
-    def get_children(self) -> List['Tree']:
+    def get_children(self) -> List['_TREE_TYPE']:
         """
         :obj:`~tree.tree.Tree` method
 
         :return: list of added children.
-        :rtype: List[:obj:`~tree.tree.Tree`]
         """
         return self._children
 
-    def get_children_of_type(self, type) -> List['Tree']:
+    def get_children_of_type(self, type_: type) -> List['_TREE_TYPE']:
         """
         :obj:`~tree.tree.Tree` method
 
-        :return: list of added children of type.
+        :return: list of added children of type.d
         :rtype: List[:obj:`~tree.tree.Tree`]
         """
-        return [ch for ch in self.get_children() if isinstance(ch, type)]
+        return [cast(_TREE_TYPE, ch) for ch in self.get_children() if isinstance(ch, type_)]
 
     def get_coordinates_in_tree(self) -> str:
         """
@@ -203,12 +206,51 @@ class Tree(ABC):
                 └── 4.1
         <BLANKLINE>
         """
-        if self.get_level() == 0:
+        parent = self.get_parent()
+        if parent is None:
             return '0'
         elif self.get_level() == 1:
-            return str(self.get_parent().get_children().index(self) + 1)
+            return str(parent.get_children().index(self) + 1)
         else:
-            return f"{self.get_parent().get_coordinates_in_tree()}.{self.get_parent().get_children().index(self) + 1}"
+            return f"{parent.get_coordinates_in_tree()}.{parent.get_children().index(self) + 1}"
+
+    def get_distance(self, reference: Optional['_TREE_TYPE'] = None) -> Optional[int]:
+        """
+        >>> t = TestTree('root')
+        >>> t.get_distance()
+        0
+        >>> t.greatgrandchild1.get_distance()
+        3
+        >>> t.greatgrandchild1.get_distance(t.child2)
+        2
+        >>> t.greatgrandchild1.get_distance(t.child1)
+        """
+
+        if self.is_root:
+            return 0
+
+        if reference is None:
+            reference = self.get_root()
+
+        parent = self.up
+        count = 1
+        while parent is not reference:
+            parent = parent.up  # type: ignore
+            count += 1
+            if parent.is_root and parent is not reference:  # type: ignore
+                return None
+        return count
+
+    def get_farthest_leaf(self: '_TREE_TYPE') -> '_TREE_TYPE':
+        """
+        >>> t = TestTree('root')
+        >>> t.get_farthest_leaf()
+        greatgrandchild1
+        """
+        leaves: List[_TREE_TYPE] = list(self.iterate_leaves())
+        if not leaves:
+            leaves = [self]
+        return max(leaves, key=lambda leaf: leaf.get_distance())  # type: ignore
 
     def filter_nodes(self, key: Union[Callable], return_value) -> list:
         """
@@ -225,7 +267,7 @@ class Tree(ABC):
                 output.append(node)
         return output
 
-    def get_parent(self) -> 'Tree':
+    def get_parent(self: '_TREE_TYPE') -> Optional[_TREE_TYPE]:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -234,15 +276,19 @@ class Tree(ABC):
         """
         return self._parent
 
-    def get_leaves(self, key: Optional[Callable] = None) -> list:
+    def get_leaves(self, key: Optional[Callable[['_TREE_TYPE'], Any]] = None) -> List[List[Any]]:
         """
-        :obj:`~tree.tree.Tree` method
+        Tree method
 
         :param key: An optional callable to be called on each leaf.
         :return: nested list of leaves or values of key(leaf) for each leaf
-        :rtype: nested list of :obj:`~tree.tree.Tree`
+
+        >>> t = TestTree('root')
+        >>> t.get_leaves()
+        [child1, [grandchild1, [greatgrandchild1]], child3, [grandchild3]]
         """
-        output = []
+        output: List[List[Any]] = []
+        child: '_TREE_TYPE'
         for child in self.get_children():
             if not child.is_leaf:
                 output.append(child.get_leaves(key=key))
@@ -251,10 +297,14 @@ class Tree(ABC):
                     output.append(key(child))
                 else:
                     output.append(child)
-
+        if not output:
+            if key is not None:
+                return [key(self)]
+            else:
+                return [cast('_TREE_TYPE', self)]
         return output
 
-    def get_root(self) -> 'Tree':
+    def get_root(self: _TREE_TYPE) -> '_TREE_TYPE':
         """
         :obj:`~tree.tree.Tree` method
 
@@ -276,18 +326,20 @@ class Tree(ABC):
             parent = node.get_parent()
         return node
 
-    def get_layer(self, level: int, key: Optional[Callable] = None) -> list:
+    def get_layer(self, level: int, key: Optional[Callable[['_TREE_TYPE'], Any]] = None) -> List['_TREE_TYPE']:
         """
         :obj:`~tree.tree.Tree` method
 
         :param level: layer number where 0 is the ``root``.
         :param key: An optional callable for each node in the layer.
-        :return: All nodes on this get_level. The leaves of branches which are shorter than the given get_level will be repeated on this and all
+        :return: All nodes on this level. The leaves of branches which are shorter than the given level will be repeated on this and all
                  following layers.
         :rtype: list
         """
+        output: List['_TREE_TYPE']
+
         if level == 0:
-            output = [self]
+            output = [cast(_TREE_TYPE, self)]
         elif level == 1:
             output = self.get_children()
         else:
@@ -297,22 +349,37 @@ class Tree(ABC):
                     output.append(child)
                 else:
                     output.extend(child.get_children())
+
         if key is None:
             return output
         else:
             return [key(child) for child in output]
 
-    def iterate_leaves(self) -> Iterator['Tree']:
+    def get_number_of_layers(self) -> int:
+        """
+        >>> t=TestTree('root')
+        >>> t.get_number_of_layers()
+        3
+        """
+        distance = self.get_farthest_leaf().get_distance(self)
+
+        if not distance:
+            return 0
+        else:
+            return distance
+
+    def iterate_leaves(self) -> Iterator[_TREE_TYPE]:
         """
         :obj:`~tree.tree.Tree` method
 
         :return: A generator iterating over all leaves.
         """
-        if self._iterated_leaves is None:
+        if self._iterated_leaves is None:  # Ensure self._iterated_leaves is not None
             self._iterated_leaves = [n for n in self.traverse() if n.is_leaf]
+
         return iter(self._iterated_leaves)
 
-    def remove(self, child: 'Tree') -> None:
+    def remove(self, child: '_TREE_TYPE') -> None:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -336,7 +403,9 @@ class Tree(ABC):
         :return: None
         """
         for child in self.get_children()[:]:
-            child.up.remove(child)
+            parent = child.get_parent()
+            if parent is not None:
+                parent.remove(child)
 
     def replace_child(self, old, new, index: int = 0) -> None:
         """
@@ -362,21 +431,21 @@ class Tree(ABC):
         self._reset_iterators()
         new._parent = self
 
-    def get_reversed_path_to_root(self) -> Iterator['Tree']:
+    def get_reversed_path_to_root(self) -> List['_TREE_TYPE']:
         """
         :obj:`~tree.tree.Tree` method
 
         :return: path from self upwards through all ancestors up to the ``root``.
 
         >>> t = TestTree('root')
-        >>> list(t.greatgrandchild1.get_reversed_path_to_root())
+        >>> t.greatgrandchild1.get_reversed_path_to_root()
         [greatgrandchild1, grandchild2, child2, root]
         """
         if self._reversed_path_to_root is None:
             self._reversed_path_to_root = list(self._raw_reversed_path_to_root())
         return self._reversed_path_to_root
 
-    def traverse(self) -> Iterator['Tree']:
+    def traverse(self) -> Iterator['_TREE_TYPE']:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -394,7 +463,7 @@ class Tree(ABC):
 
         :param key: An optional callable if ``None`` :obj:`~compact_repr` property of each node is called.
         :return: a representation of all nodes as string in tree form.
-        :rtype: str
+
         >>> t = TestTree('root')
         >>> greatgrandchild3 = t.grandchild1.add_child('greatgrandchild3')
         >>> print(t.get_tree_representation())
@@ -409,7 +478,9 @@ class Tree(ABC):
             └── child4
                 └── grandchild3
         <BLANKLINE>
+
         """
+
         tree_representation = TreeRepresentation(tree=self)
         if key:
             tree_representation.key = key
@@ -419,40 +490,33 @@ class Tree(ABC):
 
 
 class TreeRepresentation:
-    def __init__(self, tree: Tree, key: Callable = lambda x: str(x), space=3):
-        self._tree = None
-        self._key = None
-        self._space = None
-        self.tree = tree
-        self.key = key
-        self.space = space
+    def __init__(self, tree: _TREE_TYPE, key: Callable[['_TREE_TYPE'], Any] = lambda x: str(x), space: int = 3):
+        self._tree: _TREE_TYPE = tree
+        self._key: Callable[['_TREE_TYPE'], Any] = key
+        self._space: int = space
 
     @property
     def tree(self):
         return self._tree
 
     @tree.setter
-    def tree(self, val):
-        if not isinstance(val, Tree):
-            raise TypeError('TreeRepresentation.space must be of type Tree')
+    def tree(self, val: _TREE_TYPE) -> None:
         self._tree = val
 
     @property
-    def key(self) -> Optional[Callable]:
+    def key(self) -> Callable[['_TREE_TYPE'], Any]:
         return self._key
 
     @key.setter
-    def key(self, val):
-        if not callable(val):
-            raise TypeError('TreeRepresentation.key must be callable')
+    def key(self, val: Callable[['_TREE_TYPE'], Any]) -> None:
         self._key = val
 
     @property
-    def space(self):
+    def space(self) -> int:
         return self._space
 
     @space.setter
-    def space(self, val):
+    def space(self, val: int) -> None:
         if not isinstance(val, int):
             raise TypeError('TreeRepresentation.space must be of type int')
         if val < 1:

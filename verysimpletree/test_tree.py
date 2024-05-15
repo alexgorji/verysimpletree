@@ -128,6 +128,9 @@ class TestTree(TestCase):
         assert self.root.get_layer(4) == [self.child1, self.grandchild1, self.greatgrandchild1, self.child3,
                                           self.grandchild3]
 
+    def test_get_farthest_leaf(self):
+        pass
+
     def test_find_grandchild(self):
         assert [n for n in self.root.traverse() if n.get_level() == 2] == [self.grandchild1, self.grandchild2,
                                                                            self.grandchild3]
