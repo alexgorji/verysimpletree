@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from verysimpletree.tree import Tree, ChildNotFoundError
+from verysimpletree.tree import Tree, ChildNotFoundError, grandchild1
 
 
 class A(Tree):
@@ -84,9 +84,9 @@ class TestTree(TestCase):
         assert self.greatgrandchild1.get_parent() == self.grandchild2
 
     def test_get_coordinates(self):
-        assert self.greatgrandchild1.get_coordinates_in_tree() == '2.2.1'
-        assert self.child2.get_coordinates_in_tree() == '2'
-        assert self.root.get_coordinates_in_tree() == '0'
+        assert self.greatgrandchild1.get_position_in_tree() == '2.2.1'
+        assert self.child2.get_position_in_tree() == '2'
+        assert self.root.get_position_in_tree() == '0'
 
     def test_replace_child(self):
         self.child2.replace_child(self.grandchild1, A(name='new_grand_child'))
@@ -138,3 +138,23 @@ class TestTree(TestCase):
             if n.get_level() == 2:
                 print(n)
                 break
+
+
+class TestNodeReturnValue(TestCase):
+
+    def test_with_string(self):
+        assert grandchild1.get_with_key(key='name') == 'grandchild1'
+        with self.assertRaises(AttributeError):
+            grandchild1.get_with_key(key='wrong')
+
+    def test_with_callable(self):
+        assert grandchild1.get_with_key(key=lambda node: node.get_position_in_tree()) == '2.1'
+        with self.assertRaises(AttributeError):
+            grandchild1.get_with_key(key=lambda node: node.wrong_method())
+
+    def test_with_node(self):
+        assert grandchild1.get_with_key() == grandchild1.get_with_key(key=None) == grandchild1
+
+    def test_wrong_type(self):
+        with self.assertRaises(TypeError):
+            grandchild1.get_with_key(key=1)
