@@ -143,18 +143,18 @@ class TestTree(TestCase):
 class TestNodeReturnValue(TestCase):
 
     def test_with_string(self):
-        assert grandchild1.get_with_key(key='name') == 'grandchild1'
+        assert grandchild1.get_self_with_key(key='name') == 'grandchild1'
         with self.assertRaises(AttributeError):
-            grandchild1.get_with_key(key='wrong')
+            grandchild1.get_self_with_key(key='wrong')
 
     def test_with_callable(self):
-        assert grandchild1.get_with_key(key=lambda node: node.get_position_in_tree()) == '2.1'
+        assert grandchild1.get_self_with_key(key=lambda node: node.get_position_in_tree()) == '2.1'
         with self.assertRaises(AttributeError):
-            grandchild1.get_with_key(key=lambda node: node.wrong_method())
+            grandchild1.get_self_with_key(key=lambda node: node.wrong_method())
 
     def test_with_node(self):
-        assert grandchild1.get_with_key() == grandchild1.get_with_key(key=None) == grandchild1
+        assert grandchild1.get_self_with_key() == grandchild1.get_self_with_key(key=None) == grandchild1
 
     def test_wrong_type(self):
         with self.assertRaises(TypeError):
-            grandchild1.get_with_key(key=1)
+            grandchild1.get_self_with_key(key=1)

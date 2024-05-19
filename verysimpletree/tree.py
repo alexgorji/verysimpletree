@@ -321,7 +321,7 @@ class Tree(ABC, Generic[_TREE_TYPE]):
             parent = node.get_parent()
         return node
 
-    def get_with_key(self, key=None):
+    def get_self_with_key(self, key=None):
         if key is None:
             return self
         elif isinstance(key, str):
