@@ -20,32 +20,32 @@ class Tree(ABC, Generic[T]):
     _TREE_ATTRIBUTES = {'compact_repr', 'is_leaf', 'is_last_child', 'is_root', '_parent', '_children',
                         'up'}
 
-    def __init__(self: T, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self._parent: Optional['T'] = None
-        self._children: list['T'] = []
-        self._traversed: Optional[list['T']] = None
-        self._iterated_leaves: Optional[list['T']] = None
-        self._reversed_path_to_root: Optional[list['T']] = None
+        self._parent: Optional[T] = None
+        self._children: list[T] = []
+        self._traversed: Optional[list[T]] = None
+        self._iterated_leaves: Optional[list[T]] = None
+        self._reversed_path_to_root: Optional[list[T]] = None
         self._is_leaf: bool = True
 
     @abstractmethod
-    def _check_child_to_be_added(self: T, child):
+    def _check_child_to_be_added(self, child: T) -> bool:
         """each child must be checked before being added to the Tree"""
 
-    def _raw_traverse(self: T) :
+    def _raw_traverse(self: T) -> Iterator[T]:
         yield self
         for child in self.get_children():
             for node in child._raw_traverse():
                 yield node
 
-    def _raw_reversed_path_to_root(self: T) :
+    def _raw_reversed_path_to_root(self: T) -> Iterator[T]:
         yield self
-        if self.get_parent():
+        if self.get_parent() is not None:
             for node in self.get_parent().get_reversed_path_to_root():
                 yield node
 
-    def _reset_iterators(self: T) :
+    def _reset_iterators(self: T) -> None:
         """
         This method is used to reset both parent's and this class's iterators for :obj:'~traverse', obj:'~iterate_leaves' and obj:'~get_reversed_path_to_root'
         """
@@ -56,7 +56,7 @@ class Tree(ABC, Generic[T]):
         self._reversed_path_to_root = None
 
     @property
-    def is_last_child(self: T) :
+    def is_last_child(self: T) -> bool:
         """
         >>> t = TestTree('root')
         >>> for node in t.traverse():
@@ -72,7 +72,7 @@ class Tree(ABC, Generic[T]):
         return False
 
     @property
-    def is_leaf(self: T)  -> bool:
+    def is_leaf(self: T) -> bool:
         """
         :obj:`~tree.tree.Tree` property
 
@@ -82,7 +82,7 @@ class Tree(ABC, Generic[T]):
         return self._is_leaf
 
     @property
-    def is_root(self: T)  -> bool:
+    def is_root(self: T) -> bool:
         """
         :obj:`~tree.tree.Tree` property
 
@@ -91,7 +91,7 @@ class Tree(ABC, Generic[T]):
         """
         return True if self.get_parent() is None else False
 
-    def get_level(self: T)  -> int:
+    def get_level(self) -> int:
         """
         :obj:`~tree.tree.Tree`
 
@@ -114,7 +114,7 @@ class Tree(ABC, Generic[T]):
             return parent.get_level() + 1
 
     @property
-    def next(self: 'T') -> Optional['T']:
+    def next(self: T) -> Optional[T]:
         """
         :obj:`~tree.tree.Tree` property
 
@@ -127,7 +127,7 @@ class Tree(ABC, Generic[T]):
             return None
 
     @property
-    def previous(self: 'T') -> Optional['T']:
+    def previous(self: T) -> Optional[T]:
         """
         :obj:`~tree.tree.Tree` property
 
@@ -140,7 +140,7 @@ class Tree(ABC, Generic[T]):
             return None
 
     @property
-    def up(self: 'T') -> Optional[T]:
+    def up(self: T) -> Optional[T]:
         """
         :obj:`~tree.tree.Tree` property
 
@@ -149,7 +149,7 @@ class Tree(ABC, Generic[T]):
         """
         return self.get_parent()
 
-    def add_child(self: T, child: 'T') -> 'T':
+    def add_child(self: T, child: T) -> T:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -167,7 +167,7 @@ class Tree(ABC, Generic[T]):
             self._is_leaf = False
         return child
 
-    def get_children(self: T) -> list['T']:
+    def get_children(self: T) -> list[T]:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -175,7 +175,7 @@ class Tree(ABC, Generic[T]):
         """
         return self._children
 
-    def get_children_of_type(self: T, type_: type) -> list['T']:
+    def get_children_of_type(self: T, type_: type) -> list[T]:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -184,7 +184,7 @@ class Tree(ABC, Generic[T]):
         """
         return [cast(T, ch) for ch in self.get_children() if isinstance(ch, type_)]
 
-    def get_position_in_tree(self: T) -> str:
+    def get_position_in_tree(self) -> str:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -213,7 +213,7 @@ class Tree(ABC, Generic[T]):
         else:
             return f"{parent.get_position_in_tree()}.{parent.get_children().index(self) + 1}"
 
-    def get_distance(self: T, reference: Optional['T'] = None) -> Optional[int]:
+    def get_distance(self: T, reference: Optional[T] = None) -> Optional[int]:
         """
         >>> root.get_distance()
         0
@@ -236,11 +236,11 @@ class Tree(ABC, Generic[T]):
         while parent is not reference:
             parent = parent.up  # type: ignore
             count += 1
-            if parent.is_root and parent is not reference:  # type: ignore
+            if parent.is_root and parent is not reference:
                 return None
         return count
 
-    def get_farthest_leaf(self: 'T') -> 'T':
+    def get_farthest_leaf(self: T) -> T:
         """
         >>> root.get_farthest_leaf()
         greatgrandchild1
@@ -250,7 +250,7 @@ class Tree(ABC, Generic[T]):
             leaves = [self]
         return max(leaves, key=lambda leaf: leaf.get_distance())  # type: ignore
 
-    def filter_nodes(self: T, key: Callable[['T'], Any], return_value: Any) -> list['T']:
+    def filter_nodes(self: T, key: Callable[[T], Any], return_value: Any) -> list[T]:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -264,7 +264,7 @@ class Tree(ABC, Generic[T]):
                 output.append(node)
         return output
 
-    def get_parent(self: 'T') -> Optional[T]:
+    def get_parent(self: T) -> Optional[T]:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -273,8 +273,7 @@ class Tree(ABC, Generic[T]):
         """
         return self._parent
 
-    def get_leaves(self: T, key: Optional[Callable[['T'], Any]] = None) -> list[
-        Union[Any, list[Any]]]:
+    def get_leaves(self: T, key: Optional[Callable[[T], Any]] = None) -> list[Union[Any, list[Any]]]:
         """
         Tree method
 
@@ -285,7 +284,7 @@ class Tree(ABC, Generic[T]):
         [child1, [[greatgrandchild1, greatgrandchild2], grandchild2], child3, [grandchild3]]
         """
         output: list[Union[Any, list[Any]]] = []
-        child: 'T'
+        child: T
         for child in self.get_children():
             if not child.is_leaf:
                 output.append(child.get_leaves(key=key))
@@ -301,7 +300,7 @@ class Tree(ABC, Generic[T]):
                 return [cast(list[Any], self)]
         return output
 
-    def get_root(self: T) -> 'T':
+    def get_root(self: T) -> T:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -332,7 +331,7 @@ class Tree(ABC, Generic[T]):
         else:
             raise TypeError(f'{self.__class__}: key: {key} must be None, string or a callable object')
 
-    def get_layer(self: T, level: int, key: Optional[Callable[['T'], Any]] = None) -> list['T']:
+    def get_layer(self: T, level: int, key: Optional[Callable[[T], Any]] = None) -> list[T]:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -342,7 +341,7 @@ class Tree(ABC, Generic[T]):
                  following layers.
         :rtype: list
         """
-        output: list['T']
+        output: list[T]
 
         if level == 0:
             output = [cast(T, self)]
@@ -384,7 +383,7 @@ class Tree(ABC, Generic[T]):
 
         return iter(self._iterated_leaves)
 
-    def remove(self: T, child: 'T') -> None:
+    def remove(self: T, child: T) -> None:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -436,7 +435,7 @@ class Tree(ABC, Generic[T]):
         self._reset_iterators()
         new._parent = self
 
-    def get_reversed_path_to_root(self: T) -> list['T']:
+    def get_reversed_path_to_root(self: T) -> list[T]:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -449,7 +448,7 @@ class Tree(ABC, Generic[T]):
             self._reversed_path_to_root = list(self._raw_reversed_path_to_root())
         return self._reversed_path_to_root
 
-    def traverse(self: T) -> Iterator['T']:
+    def traverse(self: T) -> Iterator[T]:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -491,9 +490,9 @@ class Tree(ABC, Generic[T]):
 
 
 class TreeRepresentation:
-    def __init__(self: T, tree: T, key: Callable[['T'], Any] = lambda x: str(x), space: int = 3):
+    def __init__(self: T, tree: T, key: Callable[[T], Any] = lambda x: str(x), space: int = 3):
         self._tree: T = tree
-        self._key: Callable[['T'], Any] = key
+        self._key: Callable[[T], Any] = key
         self._space: int = space
 
     @property
@@ -505,11 +504,11 @@ class TreeRepresentation:
         self._tree = val
 
     @property
-    def key(self: T) -> Callable[['T'], Any]:
+    def key(self: T) -> Callable[[T], Any]:
         return self._key
 
     @key.setter
-    def key(self: T, val: Callable[['T'], Any]) -> None:
+    def key(self: T, val: Callable[[T], Any]) -> None:
         self._key = val
 
     @property
@@ -594,12 +593,12 @@ class TestTree(Tree):
         super().__init__(*args, **kwargs)
         self.name = name
 
-    def _check_child_to_be_added(self, child: 'TestTree'):
+    def _check_child_to_be_added(self, child: T):
         if not isinstance(child, self.__class__):
             raise TypeError
 
-    def add_child(self, name) -> 'TestTree':
-        child: 'T' = self.__class__(name=name)
+    def add_child(self, name: str) -> T:
+        child: T = self.__class__(name=name)
         return super().add_child(child)
 
     def __str__(self) -> str:
