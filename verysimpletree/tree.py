@@ -10,7 +10,7 @@ class ChildNotFoundError(TreeException):
     pass
 
 
-T = TypeVar('T', bound='Tree')
+T = TypeVar('T', bound='Tree[Any]')
 
 
 class Tree(ABC, Generic[T]):
@@ -20,8 +20,10 @@ class Tree(ABC, Generic[T]):
     _TREE_ATTRIBUTES = {'compact_repr', 'is_leaf', 'is_last_child', 'is_root', '_parent', '_children',
                         'up'}
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, content: Any = None, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
+        self._content: Any
+        self.content = content
         self._parent: Optional[T] = None
         self._children: list[T] = []
         self._traversed: Optional[list[T]] = None
@@ -41,8 +43,9 @@ class Tree(ABC, Generic[T]):
 
     def _raw_reversed_path_to_root(self: T) -> Iterator[T]:
         yield self
-        if self.get_parent() is not None:
-            for node in self.get_parent().get_reversed_path_to_root():
+        parent = self.get_parent()
+        if parent is not None:
+            for node in parent.get_reversed_path_to_root():
                 yield node
 
     def _reset_iterators(self) -> None:
@@ -56,6 +59,14 @@ class Tree(ABC, Generic[T]):
         self._reversed_path_to_root = None
 
     @property
+    def content(self) -> Any:
+        return self._content
+
+    @content.setter
+    def content(self, value: Any) -> None:
+        self._content = value
+
+    @property
     def is_last_child(self) -> bool:
         """
         >>> t = TestTree('root')
@@ -67,7 +78,7 @@ class Tree(ABC, Generic[T]):
         """
         if self.is_root:
             return True
-        if self.up.get_children()[-1] == self:
+        if cast(T, self.up).get_children()[-1] == self:
             return True
         return False
 
@@ -100,7 +111,7 @@ class Tree(ABC, Generic[T]):
         :rtype: :obj:`~tree.tree.Tree`
         """
         if self.up and self != self.up.get_children()[-1]:
-            return self.up.get_children()[self.up.get_children().index(self) + 1]
+            return cast(T, self.up.get_children()[self.up.get_children().index(self) + 1])
         else:
             return None
 
@@ -113,7 +124,7 @@ class Tree(ABC, Generic[T]):
         :rtype: :obj:`~tree.tree.Tree`
         """
         if self.up and self != self.up.get_children()[0]:
-            return self.up.get_children()[self.up.get_children().index(self) - 1]
+            return cast(T, self.up.get_children()[self.up.get_children().index(self) - 1])
         else:
             return None
 
@@ -162,7 +173,7 @@ class Tree(ABC, Generic[T]):
         """
         return [cast(T, ch) for ch in self.get_children() if isinstance(ch, type_)]
 
-    def get_distance(self, reference: Optional[T] = None) -> Optional[int]:
+    def get_distance(self, reference: Optional[T] = None) -> int:
         """
         >>> root.get_distance()
         0
@@ -170,8 +181,6 @@ class Tree(ABC, Generic[T]):
         3
         >>> greatgrandchild1.get_distance(child2)
         2
-        >>> print(greatgrandchild1.get_distance(child1))
-        None
         """
 
         if self.is_root:
@@ -182,14 +191,14 @@ class Tree(ABC, Generic[T]):
 
         parent = self.up
         count = 1
-        while parent is not reference:
-            parent = parent.up  # type: ignore
+        while parent is not None and parent is not reference:
+            parent = parent.up
             count += 1
-            if parent.is_root and parent is not reference:
-                return None
+            if parent is not None and parent.is_root and parent is not reference:
+                raise TreeException("Wrong reference for root")
         return count
 
-    def get_farthest_leaf(self) -> T:
+    def get_farthest_leaf(self: T) -> T:
         """
         >>> root.get_farthest_leaf()
         greatgrandchild1
@@ -197,9 +206,9 @@ class Tree(ABC, Generic[T]):
         leaves: list[T] = list(self.iterate_leaves())
         if not leaves:
             leaves = [self]
-        return max(leaves, key=lambda leaf: leaf.get_distance())  # type: ignore
+        return max(leaves, key=lambda leaf: leaf.get_distance())
 
-    def get_layer(self, level: int, key: Optional[Callable[[T], Any]] = None) -> list[T]:
+    def get_layer(self, level: int, key: Optional[Callable[['Tree[Any]'], Any]] = None) -> list[T]:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -228,7 +237,7 @@ class Tree(ABC, Generic[T]):
         else:
             return [key(child) for child in output]
 
-    def get_leaves(self, key: Optional[Callable[[T], Any]] = None) -> list[Union[Any, list[Any]]]:
+    def get_leaves(self, key: Optional[Callable[['Tree[Any]'], Any]] = None) -> list[Union[Any, list[Any]]]:
         """
         Tree method
 
@@ -328,7 +337,7 @@ class Tree(ABC, Generic[T]):
             self._reversed_path_to_root = list(self._raw_reversed_path_to_root())
         return self._reversed_path_to_root
 
-    def get_root(self) -> T:
+    def get_root(self: T) -> T:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -349,7 +358,7 @@ class Tree(ABC, Generic[T]):
             parent = node.get_parent()
         return node
 
-    def get_self_with_key(self, key=None):
+    def get_self_with_key(self, key: Optional[Callable[['Tree[Any]'], Any]] = None) -> Any:
         if key is None:
             return self
         elif isinstance(key, str):
@@ -359,7 +368,7 @@ class Tree(ABC, Generic[T]):
         else:
             raise TypeError(f'{self.__class__}: key: {key} must be None, string or a callable object')
 
-    def get_tree_representation(self, key: Optional[Callable] = None, space=None) -> str:
+    def get_tree_representation(self, key: Optional[Callable[['Tree[Any]'], Any]] = None, space: int = 3) -> str:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -399,7 +408,7 @@ class Tree(ABC, Generic[T]):
         else:
             return distance
 
-    def filter_nodes(self, key: Callable[[T], Any], return_value: Any) -> list[T]:
+    def filter_nodes(self, key: Callable[['Tree[Any]'], Any], return_value: Any) -> list[T]:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -452,7 +461,7 @@ class Tree(ABC, Generic[T]):
             if parent is not None:
                 parent.remove(child)
 
-    def replace_child(self, old, new, index: int = 0) -> None:
+    def replace_child(self, old: T, new: T, index: int = 0) -> None:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -490,25 +499,28 @@ class Tree(ABC, Generic[T]):
 
 
 class TreeRepresentation:
-    def __init__(self, tree: T, key: Callable[[T], Any] = lambda x: str(x), space: int = 3):
-        self._tree: T = tree
-        self._key: Callable[[T], Any] = key
-        self._space: int = space
+    def __init__(self, tree: Tree[Any], key: Callable[[Tree[Any]], Any] = lambda x: str(x), space: int = 3):
+        self._tree: Tree[Any]
+        self._key: Callable[[Tree[Any]], Any]
+        self._space: int
+        self.tree = tree
+        self.key = key
+        self.space = space
 
     @property
-    def tree(self):
+    def tree(self) -> Tree[Any]:
         return self._tree
 
     @tree.setter
-    def tree(self, val: T) -> None:
+    def tree(self, val: Tree[Any]) -> None:
         self._tree = val
 
     @property
-    def key(self) -> Callable[[T], Any]:
+    def key(self) -> Callable[[Tree[Any]], Any]:
         return self._key
 
     @key.setter
-    def key(self, val: Callable[[T], Any]) -> None:
+    def key(self, val: Callable[[Tree[Any]], Any]) -> None:
         self._key = val
 
     @property
@@ -554,20 +566,20 @@ class TreeRepresentation:
 
         """
 
-        last_hook = '└'
-        continue_hook = '├'
-        no_hook = '│'
-        horizontal = '─'
+        last_hook: str = '└'
+        continue_hook: str = '├'
+        no_hook: str = '│'
+        horizontal: str = '─'
 
-        def get_vertical():
+        def get_vertical() -> str:
             if node.is_last_child:
                 return last_hook
             return continue_hook
 
-        def get_horizontal():
+        def get_horizontal() -> str:
             return (horizontal * (self.space - 1)) + ' '
 
-        def get_path():
+        def get_path() -> str:
             path = ''
             for i, n in enumerate(node.get_reversed_path_to_root()):
                 if i == 0:
@@ -587,19 +599,20 @@ class TreeRepresentation:
 
 
 # Example usage
-class TestTree(Tree):
+class TestTree(Tree[Any]):
 
     def __init__(self, name: str = '', *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.name = name
 
-    def _check_child_to_be_added(self, child: T):
+    def _check_child_to_be_added(self, child: T) -> bool:
         if not isinstance(child, self.__class__):
             raise TypeError
+        return True
 
-    def add_child(self, name: str) -> T:
-        child: T = self.__class__(name=name)
-        return super().add_child(child)
+    def add_string_child(self, name: str) -> 'TestTree':
+        child: 'TestTree' = self.__class__(name=name)
+        return cast(TestTree, self.add_child(child))
 
     def __str__(self) -> str:
         return self.name
@@ -609,12 +622,12 @@ class TestTree(Tree):
 
 
 root = TestTree('root')
-child1: TestTree = root.add_child('child1')
-child2: TestTree = root.add_child('child2')
-child3: TestTree = root.add_child('child3')
-child4: TestTree = root.add_child('child4')
-grandchild1: TestTree = child2.add_child('grandchild1')
-grandchild2: TestTree = child2.add_child('grandchild2')
-grandchild3: TestTree = child4.add_child('grandchild3')
-greatgrandchild1: TestTree = grandchild1.add_child('greatgrandchild1')
-greatgrandchild2: TestTree = grandchild1.add_child('greatgrandchild2')
+child1: TestTree = root.add_string_child('child1')
+child2: TestTree = root.add_string_child('child2')
+child3: TestTree = root.add_string_child('child3')
+child4: TestTree = root.add_string_child('child4')
+grandchild1: TestTree = child2.add_string_child('grandchild1')
+grandchild2: TestTree = child2.add_string_child('grandchild2')
+grandchild3: TestTree = child4.add_string_child('grandchild3')
+greatgrandchild1: TestTree = grandchild1.add_string_child('greatgrandchild1')
+greatgrandchild2: TestTree = grandchild1.add_string_child('greatgrandchild2')

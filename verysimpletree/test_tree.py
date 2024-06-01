@@ -1,28 +1,32 @@
+from typing import Any
 from unittest import TestCase
 
 from verysimpletree.tree import Tree, ChildNotFoundError, grandchild1
 
 
-class A(Tree):
+class AContent:
+    def __init__(self, value):
+        self.value = value
+
+
+class A(Tree[Any]):
     def __init__(self, name, parent=None, *args, **keyword):
         super().__init__(*args, **keyword)
         self._children = []
         self._parent = parent
         self.name = name
+        self.content = AContent(value=10)
 
     def _check_child_to_be_added(self, child):
         if not isinstance(child, self.__class__):
             raise TypeError
 
     def add_child(self, name):
-        child = type(self)(parent=self, name=name)
+        child = self.__class__(parent=self, name=name)
         return super().add_child(child)
 
     def __str__(self):
         return self.name
-
-    def __repr__(self):
-        return self.__str__()
 
 
 class TestTree(TestCase):
@@ -138,6 +142,10 @@ class TestTree(TestCase):
             if n.get_level() == 2:
                 print(n)
                 break
+
+    def test_content(self):
+        self.child1.content.value = 20
+        assert [ch.content.value for ch in self.root.get_children()] == [20, 10, 10, 10]
 
 
 class TestNodeReturnValue(TestCase):
