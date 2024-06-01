@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Callable, List, Iterator, Union, TypeVar, Any, Generic, cast
+from typing import Optional, Callable, Iterator, TypeVar, Any, Generic, cast, Union
 
 
 class TreeException(Exception):
@@ -23,15 +23,15 @@ class Tree(ABC, Generic[_TREE_TYPE]):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._parent: Optional['_TREE_TYPE'] = None
-        self._children: List['_TREE_TYPE'] = []
-        self._traversed: Optional[List['_TREE_TYPE']] = None
-        self._iterated_leaves: Optional[List['_TREE_TYPE']] = None
-        self._reversed_path_to_root: Optional[List['_TREE_TYPE']] = None
+        self._children: list['_TREE_TYPE'] = []
+        self._traversed: Optional[list['_TREE_TYPE']] = None
+        self._iterated_leaves: Optional[list['_TREE_TYPE']] = None
+        self._reversed_path_to_root: Optional[list['_TREE_TYPE']] = None
         self._is_leaf: bool = True
 
     @abstractmethod
     def _check_child_to_be_added(self, child):
-        pass
+        """each child must be checked before being added to the Tree"""
 
     def _raw_traverse(self):
         yield self
@@ -167,7 +167,7 @@ class Tree(ABC, Generic[_TREE_TYPE]):
             self._is_leaf = False
         return child
 
-    def get_children(self) -> List['_TREE_TYPE']:
+    def get_children(self) -> list['_TREE_TYPE']:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -175,12 +175,12 @@ class Tree(ABC, Generic[_TREE_TYPE]):
         """
         return self._children
 
-    def get_children_of_type(self, type_: type) -> List['_TREE_TYPE']:
+    def get_children_of_type(self, type_: type) -> list['_TREE_TYPE']:
         """
         :obj:`~tree.tree.Tree` method
 
         :return: list of added children of type.d
-        :rtype: List[:obj:`~tree.tree.Tree`]
+        :rtype: list[:obj:`~tree.tree.Tree`]
         """
         return [cast(_TREE_TYPE, ch) for ch in self.get_children() if isinstance(ch, type_)]
 
@@ -245,12 +245,12 @@ class Tree(ABC, Generic[_TREE_TYPE]):
         >>> root.get_farthest_leaf()
         greatgrandchild1
         """
-        leaves: List[_TREE_TYPE] = list(self.iterate_leaves())
+        leaves: list[_TREE_TYPE] = list(self.iterate_leaves())
         if not leaves:
             leaves = [self]
         return max(leaves, key=lambda leaf: leaf.get_distance())  # type: ignore
 
-    def filter_nodes(self, key: Callable[['_TREE_TYPE'], Any], return_value: Any) -> List['_TREE_TYPE']:
+    def filter_nodes(self, key: Callable[['_TREE_TYPE'], Any], return_value: Any) -> list['_TREE_TYPE']:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -273,7 +273,8 @@ class Tree(ABC, Generic[_TREE_TYPE]):
         """
         return self._parent
 
-    def get_leaves(self, key: Optional[Callable[['_TREE_TYPE'], Any]] = None) -> List[List[Any]]:
+    def get_leaves(self: _TREE_TYPE, key: Optional[Callable[['_TREE_TYPE'], Any]] = None) -> list[
+        Union[Any, list[Any]]]:
         """
         Tree method
 
@@ -283,7 +284,7 @@ class Tree(ABC, Generic[_TREE_TYPE]):
         >>> root.get_leaves()
         [child1, [[greatgrandchild1, greatgrandchild2], grandchild2], child3, [grandchild3]]
         """
-        output: List[List[Any]] = []
+        output: list[Union[Any, list[Any]]] = []
         child: '_TREE_TYPE'
         for child in self.get_children():
             if not child.is_leaf:
@@ -297,7 +298,7 @@ class Tree(ABC, Generic[_TREE_TYPE]):
             if key is not None:
                 return [key(self)]
             else:
-                return [cast('_TREE_TYPE', self)]
+                return [cast(list[Any], self)]
         return output
 
     def get_root(self: _TREE_TYPE) -> '_TREE_TYPE':
@@ -331,7 +332,7 @@ class Tree(ABC, Generic[_TREE_TYPE]):
         else:
             raise TypeError(f'{self.__class__}: key: {key} must be None, string or a callable object')
 
-    def get_layer(self, level: int, key: Optional[Callable[['_TREE_TYPE'], Any]] = None) -> List['_TREE_TYPE']:
+    def get_layer(self, level: int, key: Optional[Callable[['_TREE_TYPE'], Any]] = None) -> list['_TREE_TYPE']:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -341,7 +342,7 @@ class Tree(ABC, Generic[_TREE_TYPE]):
                  following layers.
         :rtype: list
         """
-        output: List['_TREE_TYPE']
+        output: list['_TREE_TYPE']
 
         if level == 0:
             output = [cast(_TREE_TYPE, self)]
@@ -435,7 +436,7 @@ class Tree(ABC, Generic[_TREE_TYPE]):
         self._reset_iterators()
         new._parent = self
 
-    def get_reversed_path_to_root(self) -> List['_TREE_TYPE']:
+    def get_reversed_path_to_root(self) -> list['_TREE_TYPE']:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -586,34 +587,35 @@ class TreeRepresentation:
         return output
 
 
+# Example usage
 class TestTree(Tree):
-    def __init__(self, name=None, *args, **kwargs):
+
+    def __init__(self, name: str = '', *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.name = name
 
-    def _check_child_to_be_added(self, child):
+    def _check_child_to_be_added(self, child: _TREE_TYPE):
         if not isinstance(child, self.__class__):
             raise TypeError
 
-    def add_child(self, name):
-        child = type(self)(name=name)
+    def add_child(self, name) -> _TREE_TYPE:
+        child: '_TREE_TYPE' = self.__class__(name=name)
         return super().add_child(child)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()
 
 
-# Example usage
 root = TestTree('root')
-child1 = root.add_child('child1')
-child2 = root.add_child('child2')
-child3 = root.add_child('child3')
-child4 = root.add_child('child4')
-grandchild1 = child2.add_child('grandchild1')
-grandchild2 = child2.add_child('grandchild2')
-grandchild3 = child4.add_child('grandchild3')
-greatgrandchild1 = grandchild1.add_child('greatgrandchild1')
-greatgrandchild2 = grandchild1.add_child('greatgrandchild2')
+child1: TestTree = root.add_child('child1')
+child2: TestTree = root.add_child('child2')
+child3: TestTree = root.add_child('child3')
+child4: TestTree = root.add_child('child4')
+grandchild1: TestTree = child2.add_child('grandchild1')
+grandchild2: TestTree = child2.add_child('grandchild2')
+grandchild3: TestTree = child4.add_child('grandchild3')
+greatgrandchild1: TestTree = grandchild1.add_child('greatgrandchild1')
+greatgrandchild2: TestTree = grandchild1.add_child('greatgrandchild2')
