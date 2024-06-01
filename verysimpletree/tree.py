@@ -45,7 +45,7 @@ class Tree(ABC, Generic[T]):
             for node in self.get_parent().get_reversed_path_to_root():
                 yield node
 
-    def _reset_iterators(self: T) -> None:
+    def _reset_iterators(self) -> None:
         """
         This method is used to reset both parent's and this class's iterators for :obj:'~traverse', obj:'~iterate_leaves' and obj:'~get_reversed_path_to_root'
         """
@@ -56,7 +56,7 @@ class Tree(ABC, Generic[T]):
         self._reversed_path_to_root = None
 
     @property
-    def is_last_child(self: T) -> bool:
+    def is_last_child(self) -> bool:
         """
         >>> t = TestTree('root')
         >>> for node in t.traverse():
@@ -72,7 +72,7 @@ class Tree(ABC, Generic[T]):
         return False
 
     @property
-    def is_leaf(self: T) -> bool:
+    def is_leaf(self) -> bool:
         """
         :obj:`~tree.tree.Tree` property
 
@@ -82,7 +82,7 @@ class Tree(ABC, Generic[T]):
         return self._is_leaf
 
     @property
-    def is_root(self: T) -> bool:
+    def is_root(self) -> bool:
         """
         :obj:`~tree.tree.Tree` property
 
@@ -91,30 +91,8 @@ class Tree(ABC, Generic[T]):
         """
         return True if self.get_parent() is None else False
 
-    def get_level(self) -> int:
-        """
-        :obj:`~tree.tree.Tree`
-
-        :return: ``0`` for ``root``, ``1, 2 etc.`` for each layer of children
-        :rtype: nonnegative int
-
-        >>> root.get_level()
-        0
-        >>> child1.get_level()
-        1
-        >>> grandchild1.get_level()
-        2
-        >>> greatgrandchild1.get_level()
-        3
-        """
-        parent = self.get_parent()
-        if parent is None:
-            return 0
-        else:
-            return parent.get_level() + 1
-
     @property
-    def next(self: T) -> Optional[T]:
+    def next(self) -> Optional[T]:
         """
         :obj:`~tree.tree.Tree` property
 
@@ -127,7 +105,7 @@ class Tree(ABC, Generic[T]):
             return None
 
     @property
-    def previous(self: T) -> Optional[T]:
+    def previous(self) -> Optional[T]:
         """
         :obj:`~tree.tree.Tree` property
 
@@ -140,7 +118,7 @@ class Tree(ABC, Generic[T]):
             return None
 
     @property
-    def up(self: T) -> Optional[T]:
+    def up(self) -> Optional[T]:
         """
         :obj:`~tree.tree.Tree` property
 
@@ -149,7 +127,7 @@ class Tree(ABC, Generic[T]):
         """
         return self.get_parent()
 
-    def add_child(self: T, child: T) -> T:
+    def add_child(self, child: T) -> T:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -175,7 +153,7 @@ class Tree(ABC, Generic[T]):
         """
         return self._children
 
-    def get_children_of_type(self: T, type_: type) -> list[T]:
+    def get_children_of_type(self, type_: type) -> list[T]:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -183,6 +161,130 @@ class Tree(ABC, Generic[T]):
         :rtype: list[:obj:`~tree.tree.Tree`]
         """
         return [cast(T, ch) for ch in self.get_children() if isinstance(ch, type_)]
+
+    def get_distance(self, reference: Optional[T] = None) -> Optional[int]:
+        """
+        >>> root.get_distance()
+        0
+        >>> greatgrandchild1.get_distance()
+        3
+        >>> greatgrandchild1.get_distance(child2)
+        2
+        >>> print(greatgrandchild1.get_distance(child1))
+        None
+        """
+
+        if self.is_root:
+            return 0
+
+        if reference is None:
+            reference = self.get_root()
+
+        parent = self.up
+        count = 1
+        while parent is not reference:
+            parent = parent.up  # type: ignore
+            count += 1
+            if parent.is_root and parent is not reference:
+                return None
+        return count
+
+    def get_farthest_leaf(self) -> T:
+        """
+        >>> root.get_farthest_leaf()
+        greatgrandchild1
+        """
+        leaves: list[T] = list(self.iterate_leaves())
+        if not leaves:
+            leaves = [self]
+        return max(leaves, key=lambda leaf: leaf.get_distance())  # type: ignore
+
+    def get_layer(self, level: int, key: Optional[Callable[[T], Any]] = None) -> list[T]:
+        """
+        :obj:`~tree.tree.Tree` method
+
+        :param level: layer number where 0 is the ``root``.
+        :param key: An optional callable for each node in the layer.
+        :return: All nodes on this level. The leaves of branches which are shorter than the given level will be repeated on this and all
+                 following layers.
+        :rtype: list
+        """
+        output: list[T]
+
+        if level == 0:
+            output = [cast(T, self)]
+        elif level == 1:
+            output = self.get_children()
+        else:
+            output = []
+            for child in self.get_layer(level - 1):
+                if child.is_leaf:
+                    output.append(child)
+                else:
+                    output.extend(child.get_children())
+
+        if key is None:
+            return output
+        else:
+            return [key(child) for child in output]
+
+    def get_leaves(self, key: Optional[Callable[[T], Any]] = None) -> list[Union[Any, list[Any]]]:
+        """
+        Tree method
+
+        :param key: An optional callable to be called on each leaf.
+        :return: nested list of leaves or values of key(leaf) for each leaf
+
+        >>> root.get_leaves()
+        [child1, [[greatgrandchild1, greatgrandchild2], grandchild2], child3, [grandchild3]]
+        """
+        output: list[Union[Any, list[Any]]] = []
+        child: T
+        for child in self.get_children():
+            if not child.is_leaf:
+                output.append(child.get_leaves(key=key))
+            else:
+                if key is not None:
+                    output.append(key(child))
+                else:
+                    output.append(child)
+        if not output:
+            if key is not None:
+                return [key(self)]
+            else:
+                return [cast(list[Any], self)]
+        return output
+
+    def get_level(self) -> int:
+        """
+        :obj:`~tree.tree.Tree`
+
+        :return: ``0`` for ``root``, ``1, 2 etc.`` for each layer of children
+        :rtype: nonnegative int
+
+        >>> root.get_level()
+        0
+        >>> child1.get_level()
+        1
+        >>> grandchild1.get_level()
+        2
+        >>> greatgrandchild1.get_level()
+        3
+        """
+        parent = self.get_parent()
+        if parent is None:
+            return 0
+        else:
+            return parent.get_level() + 1
+
+    def get_parent(self: T) -> Optional[T]:
+        """
+        :obj:`~tree.tree.Tree` method
+
+        :return: parent. ``None`` for ``root``.
+        :rtype: :obj:`~tree.tree.Tree`
+        """
+        return self._parent
 
     def get_position_in_tree(self) -> str:
         """
@@ -213,94 +315,20 @@ class Tree(ABC, Generic[T]):
         else:
             return f"{parent.get_position_in_tree()}.{parent.get_children().index(self) + 1}"
 
-    def get_distance(self: T, reference: Optional[T] = None) -> Optional[int]:
-        """
-        >>> root.get_distance()
-        0
-        >>> greatgrandchild1.get_distance()
-        3
-        >>> greatgrandchild1.get_distance(child2)
-        2
-        >>> print(greatgrandchild1.get_distance(child1))
-        None
-        """
-
-        if self.is_root:
-            return 0
-
-        if reference is None:
-            reference = self.get_root()
-
-        parent = self.up
-        count = 1
-        while parent is not reference:
-            parent = parent.up  # type: ignore
-            count += 1
-            if parent.is_root and parent is not reference:
-                return None
-        return count
-
-    def get_farthest_leaf(self: T) -> T:
-        """
-        >>> root.get_farthest_leaf()
-        greatgrandchild1
-        """
-        leaves: list[T] = list(self.iterate_leaves())
-        if not leaves:
-            leaves = [self]
-        return max(leaves, key=lambda leaf: leaf.get_distance())  # type: ignore
-
-    def filter_nodes(self: T, key: Callable[[T], Any], return_value: Any) -> list[T]:
+    def get_reversed_path_to_root(self) -> list[T]:
         """
         :obj:`~tree.tree.Tree` method
 
-        >>> root.filter_nodes(lambda node: node.get_level(), 2)
-        [grandchild1, grandchild2, grandchild3]
+        :return: path from self upwards through all ancestors up to the ``root``.
+
+        >>> greatgrandchild1.get_reversed_path_to_root()
+        [greatgrandchild1, grandchild1, child2, root]
         """
-        output = []
+        if self._reversed_path_to_root is None:
+            self._reversed_path_to_root = list(self._raw_reversed_path_to_root())
+        return self._reversed_path_to_root
 
-        for node in self.traverse():
-            if key(node) == return_value:
-                output.append(node)
-        return output
-
-    def get_parent(self: T) -> Optional[T]:
-        """
-        :obj:`~tree.tree.Tree` method
-
-        :return: parent. ``None`` for ``root``.
-        :rtype: :obj:`~tree.tree.Tree`
-        """
-        return self._parent
-
-    def get_leaves(self: T, key: Optional[Callable[[T], Any]] = None) -> list[Union[Any, list[Any]]]:
-        """
-        Tree method
-
-        :param key: An optional callable to be called on each leaf.
-        :return: nested list of leaves or values of key(leaf) for each leaf
-
-        >>> root.get_leaves()
-        [child1, [[greatgrandchild1, greatgrandchild2], grandchild2], child3, [grandchild3]]
-        """
-        output: list[Union[Any, list[Any]]] = []
-        child: T
-        for child in self.get_children():
-            if not child.is_leaf:
-                output.append(child.get_leaves(key=key))
-            else:
-                if key is not None:
-                    output.append(key(child))
-                else:
-                    output.append(child)
-        if not output:
-            if key is not None:
-                return [key(self)]
-            else:
-                return [cast(list[Any], self)]
-        return output
-
-    def get_root(self: T) -> T:
+    def get_root(self) -> T:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -321,7 +349,7 @@ class Tree(ABC, Generic[T]):
             parent = node.get_parent()
         return node
 
-    def get_self_with_key(self: T, key=None):
+    def get_self_with_key(self, key=None):
         if key is None:
             return self
         elif isinstance(key, str):
@@ -331,136 +359,7 @@ class Tree(ABC, Generic[T]):
         else:
             raise TypeError(f'{self.__class__}: key: {key} must be None, string or a callable object')
 
-    def get_layer(self: T, level: int, key: Optional[Callable[[T], Any]] = None) -> list[T]:
-        """
-        :obj:`~tree.tree.Tree` method
-
-        :param level: layer number where 0 is the ``root``.
-        :param key: An optional callable for each node in the layer.
-        :return: All nodes on this level. The leaves of branches which are shorter than the given level will be repeated on this and all
-                 following layers.
-        :rtype: list
-        """
-        output: list[T]
-
-        if level == 0:
-            output = [cast(T, self)]
-        elif level == 1:
-            output = self.get_children()
-        else:
-            output = []
-            for child in self.get_layer(level - 1):
-                if child.is_leaf:
-                    output.append(child)
-                else:
-                    output.extend(child.get_children())
-
-        if key is None:
-            return output
-        else:
-            return [key(child) for child in output]
-
-    def get_number_of_layers(self: T) -> int:
-        """
-        >>> root.get_number_of_layers()
-        3
-        """
-        distance = self.get_farthest_leaf().get_distance(self)
-
-        if not distance:
-            return 0
-        else:
-            return distance
-
-    def iterate_leaves(self: T) -> Iterator[T]:
-        """
-        :obj:`~tree.tree.Tree` method
-
-        :return: A generator iterating over all leaves.
-        """
-        if self._iterated_leaves is None:  # Ensure self._iterated_leaves is not None
-            self._iterated_leaves = [n for n in self.traverse() if n.is_leaf]
-
-        return iter(self._iterated_leaves)
-
-    def remove(self: T, child: T) -> None:
-        """
-        :obj:`~tree.tree.Tree` method
-
-        Child's parent will be set to ``None`` and child will be removed from list of children.
-
-        :param child:
-        :return: None
-        """
-        if child not in self.get_children():
-            raise ChildNotFoundError
-        child._parent = None
-        self.get_children().remove(child)
-        self._reset_iterators()
-
-    def remove_children(self: T) -> None:
-        """
-        :obj:`~tree.tree.Tree` method
-
-        Calls :obj:`remove()` on all children.
-
-        :return: None
-        """
-        for child in self.get_children()[:]:
-            parent = child.get_parent()
-            if parent is not None:
-                parent.remove(child)
-
-    def replace_child(self: T, old, new, index: int = 0) -> None:
-        """
-        :obj:`~tree.tree.Tree` method
-
-        :param old: child or function
-        :param new: child
-        :param index: index of old child in the list of its appearances
-        :return: None
-        """
-        if hasattr(old, '__call__'):
-            list_of_olds = [ch for ch in self.get_children() if old(ch)]
-        else:
-            list_of_olds = [ch for ch in self.get_children() if ch == old]
-        if not list_of_olds:
-            raise ValueError(f"{old} not in list.")
-        self._check_child_to_be_added(new)
-        old_index = self.get_children().index(list_of_olds[index])
-        old_child = self.get_children()[old_index]
-        self.get_children().remove(old_child)
-        self.get_children().insert(old_index, new)
-        old_child._parent = None
-        self._reset_iterators()
-        new._parent = self
-
-    def get_reversed_path_to_root(self: T) -> list[T]:
-        """
-        :obj:`~tree.tree.Tree` method
-
-        :return: path from self upwards through all ancestors up to the ``root``.
-
-        >>> greatgrandchild1.get_reversed_path_to_root()
-        [greatgrandchild1, grandchild1, child2, root]
-        """
-        if self._reversed_path_to_root is None:
-            self._reversed_path_to_root = list(self._raw_reversed_path_to_root())
-        return self._reversed_path_to_root
-
-    def traverse(self: T) -> Iterator[T]:
-        """
-        :obj:`~tree.tree.Tree` method
-
-        Traverse all tree nodes.
-
-        :return: generator
-        """
-        if self._traversed is None:
-            self._traversed = list(self._raw_traverse())
-        return iter(self._traversed)
-
-    def get_tree_representation(self: T, key: Optional[Callable] = None, space=None) -> str:
+    def get_tree_representation(self, key: Optional[Callable] = None, space=None) -> str:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -488,42 +387,143 @@ class Tree(ABC, Generic[T]):
             tree_representation.space = space
         return tree_representation.get_representation()
 
+    def get_number_of_layers(self) -> int:
+        """
+        >>> root.get_number_of_layers()
+        3
+        """
+        distance = self.get_farthest_leaf().get_distance(self)
+
+        if not distance:
+            return 0
+        else:
+            return distance
+
+    def filter_nodes(self, key: Callable[[T], Any], return_value: Any) -> list[T]:
+        """
+        :obj:`~tree.tree.Tree` method
+
+        >>> root.filter_nodes(lambda node: node.get_level(), 2)
+        [grandchild1, grandchild2, grandchild3]
+        """
+        output = []
+
+        for node in self.traverse():
+            if key(node) == return_value:
+                output.append(node)
+        return output
+
+    def iterate_leaves(self) -> Iterator[T]:
+        """
+        :obj:`~tree.tree.Tree` method
+
+        :return: A generator iterating over all leaves.
+        """
+        if self._iterated_leaves is None:  # Ensure self._iterated_leaves is not None
+            self._iterated_leaves = [n for n in self.traverse() if n.is_leaf]
+
+        return iter(self._iterated_leaves)
+
+    def remove(self, child: T) -> None:
+        """
+        :obj:`~tree.tree.Tree` method
+
+        Child's parent will be set to ``None`` and child will be removed from list of children.
+
+        :param child:
+        :return: None
+        """
+        if child not in self.get_children():
+            raise ChildNotFoundError
+        child._parent = None
+        self.get_children().remove(child)
+        self._reset_iterators()
+
+    def remove_children(self) -> None:
+        """
+        :obj:`~tree.tree.Tree` method
+
+        Calls :obj:`remove()` on all children.
+
+        :return: None
+        """
+        for child in self.get_children()[:]:
+            parent = child.get_parent()
+            if parent is not None:
+                parent.remove(child)
+
+    def replace_child(self, old, new, index: int = 0) -> None:
+        """
+        :obj:`~tree.tree.Tree` method
+
+        :param old: child or function
+        :param new: child
+        :param index: index of old child in the list of its appearances
+        :return: None
+        """
+        if hasattr(old, '__call__'):
+            list_of_olds = [ch for ch in self.get_children() if old(ch)]
+        else:
+            list_of_olds = [ch for ch in self.get_children() if ch == old]
+        if not list_of_olds:
+            raise ValueError(f"{old} not in list.")
+        self._check_child_to_be_added(new)
+        old_index = self.get_children().index(list_of_olds[index])
+        old_child = self.get_children()[old_index]
+        self.get_children().remove(old_child)
+        self.get_children().insert(old_index, new)
+        old_child._parent = None
+        self._reset_iterators()
+        new._parent = self
+
+    def traverse(self) -> Iterator[T]:
+        """
+        :obj:`~tree.tree.Tree` method
+
+        Traverse all tree nodes.
+
+        :return: generator
+        """
+        if self._traversed is None:
+            self._traversed = list(self._raw_traverse())
+        return iter(self._traversed)
+
 
 class TreeRepresentation:
-    def __init__(self: T, tree: T, key: Callable[[T], Any] = lambda x: str(x), space: int = 3):
+    def __init__(self, tree: T, key: Callable[[T], Any] = lambda x: str(x), space: int = 3):
         self._tree: T = tree
         self._key: Callable[[T], Any] = key
         self._space: int = space
 
     @property
-    def tree(self: T):
+    def tree(self):
         return self._tree
 
     @tree.setter
-    def tree(self: T, val: T) -> None:
+    def tree(self, val: T) -> None:
         self._tree = val
 
     @property
-    def key(self: T) -> Callable[[T], Any]:
+    def key(self) -> Callable[[T], Any]:
         return self._key
 
     @key.setter
-    def key(self: T, val: Callable[[T], Any]) -> None:
+    def key(self, val: Callable[[T], Any]) -> None:
         self._key = val
 
     @property
-    def space(self: T) -> int:
+    def space(self) -> int:
         return self._space
 
     @space.setter
-    def space(self: T, val: int) -> None:
+    def space(self, val: int) -> None:
         if not isinstance(val, int):
             raise TypeError('TreeRepresentation.space must be of type int')
         if val < 1:
             raise ValueError('TreeRepresentation.space must be greater than 0')
         self._space = val
 
-    def get_representation(self: T) -> str:
+    def get_representation(self) -> str:
         """
         >>> rep = TreeRepresentation(tree=root, key=lambda node: node.get_position_in_tree())
         >>> print(rep.get_representation())
