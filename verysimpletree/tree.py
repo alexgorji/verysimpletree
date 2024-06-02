@@ -6,6 +6,10 @@ class TreeException(Exception):
     pass
 
 
+class TreeReferenceError(TreeException, AttributeError):
+    pass
+
+
 class ChildNotFoundError(TreeException):
     pass
 
@@ -195,7 +199,7 @@ class Tree(ABC, Generic[T]):
             parent = parent.up
             count += 1
             if parent is not None and parent.is_root and parent is not reference:
-                raise TreeException("Wrong reference for root")
+                raise TreeReferenceError(f"Wrong reference {reference} not in path to root.")
         return count
 
     def get_farthest_leaf(self: T) -> T:
@@ -204,8 +208,6 @@ class Tree(ABC, Generic[T]):
         greatgrandchild1
         """
         leaves: list[T] = list(self.iterate_leaves())
-        if not leaves:
-            leaves = [self]
         return max(leaves, key=lambda leaf: leaf.get_distance())
 
     def get_layer(self, level: int, key: Optional[Callable[['Tree[Any]'], Any]] = None) -> list[T]:
@@ -389,11 +391,9 @@ class Tree(ABC, Generic[T]):
         <BLANKLINE>
         """
 
-        tree_representation = TreeRepresentation(tree=self)
+        tree_representation = TreeRepresentation(tree=self, space=space)
         if key:
             tree_representation.key = key
-        if space:
-            tree_representation.space = space
         return tree_representation.get_representation()
 
     def get_number_of_layers(self) -> int:
@@ -599,14 +599,14 @@ class TreeRepresentation:
 
 
 # Example usage
-class TestTree(Tree[Any]):
+class TestTree(Tree[Any]):  # pragma: no cover
 
     def __init__(self, name: str = '', *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.name = name
 
     def _check_child_to_be_added(self, child: T) -> bool:
-        if not isinstance(child, self.__class__):
+        if not isinstance(child, Tree):
             raise TypeError
         return True
 

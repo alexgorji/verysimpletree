@@ -1,10 +1,15 @@
 from typing import Any
 from unittest import TestCase
 
-from verysimpletree.tree import Tree, ChildNotFoundError, grandchild1
+from verysimpletree.tree import Tree, ChildNotFoundError, grandchild1, TreeReferenceError
 
 
 class AContent:
+    def __init__(self, value):
+        self.value = value
+
+
+class BContent:
     def __init__(self, value):
         self.value = value
 
@@ -18,10 +23,10 @@ class A(Tree[Any]):
         self.content = AContent(value=10)
 
     def _check_child_to_be_added(self, child):
-        if not isinstance(child, self.__class__):
+        if not isinstance(child, Tree):
             raise TypeError
 
-    def add_child(self, name):
+    def add_child_by_name(self, name):
         child = self.__class__(parent=self, name=name)
         return super().add_child(child)
 
@@ -29,17 +34,28 @@ class A(Tree[Any]):
         return self.name
 
 
+class B(Tree[Any]):
+    def __init__(self, name, *args, **keyword):
+        super().__init__(*args, **keyword)
+        self.name = name
+        self.content = BContent(value=10)
+
+    def _check_child_to_be_added(self, child):
+        if not isinstance(child, Tree):
+            raise TypeError
+
+
 class TestTree(TestCase):
     def setUp(self) -> None:
         self.root = A(name='root')
-        self.child1 = self.root.add_child('child1')
-        self.child2 = self.root.add_child('child2')
-        self.child3 = self.root.add_child('child3')
-        self.child4 = self.root.add_child('child4')
-        self.grandchild1 = self.child2.add_child('grandchild1')
-        self.grandchild2 = self.child2.add_child('grandchild2')
-        self.grandchild3 = self.child4.add_child('grandchild3')
-        self.greatgrandchild1 = self.grandchild2.add_child('greatgrandchild1')
+        self.child1 = self.root.add_child_by_name('child1')
+        self.child2 = self.root.add_child_by_name('child2')
+        self.child3 = self.root.add_child_by_name('child3')
+        self.child4 = self.root.add_child_by_name('child4')
+        self.grandchild1 = self.child2.add_child_by_name('grandchild1')
+        self.grandchild2 = self.child2.add_child_by_name('grandchild2')
+        self.grandchild3 = self.child4.add_child_by_name('grandchild3')
+        self.greatgrandchild1 = self.grandchild2.add_child_by_name('greatgrandchild1')
 
     def test_is_last_child(self):
         t = self.root
@@ -95,8 +111,8 @@ class TestTree(TestCase):
     def test_replace_child(self):
         self.child2.replace_child(self.grandchild1, A(name='new_grand_child'))
         assert [ch.name for ch in self.child2.get_children()] == ['new_grand_child', 'grandchild2']
-        self.child1.add_child('grandchild')
-        self.child1.add_child('grandchild')
+        self.child1.add_child_by_name('grandchild')
+        self.child1.add_child_by_name('grandchild')
         new = A(name='other_new_grand_child')
         self.child1.replace_child(lambda x: x.name == 'grandchild', new, 1)
         assert new.get_parent() == self.child1
@@ -147,6 +163,40 @@ class TestTree(TestCase):
         self.child1.content.value = 20
         assert [ch.content.value for ch in self.root.get_children()] == [20, 10, 10, 10]
 
+    def test_get_wrong_distance(self):
+        with self.assertRaises(TreeReferenceError):
+            assert self.greatgrandchild1.get_distance(self.child1) == 'bla'
+
+    def test_get_farthest_leave_of_root_without_children(self):
+        root = A('root')
+        assert root.get_farthest_leaf() == root
+
+    def test_get_leaves_of_root_without_children(self):
+        root = A('root')
+        assert root.get_leaves() == [root]
+        assert root.get_leaves(key=lambda node: node.name) == ['root']
+
+    def test_get_number_of_layers_of_root_without_children(self):
+        root = A('root')
+        assert root.get_number_of_layers() == 0
+
+    def test_get_layer_with_key(self):
+        assert self.root.get_layer(1, lambda node: node.name) == ['child1', 'child2', 'child3', 'child4']
+        assert self.root.get_layer(2, lambda node: node.name) == ['child1', 'grandchild1', 'grandchild2', 'child3',
+                                                                  'grandchild3']
+        assert self.root.get_layer(3, lambda node: node.name) == ['child1', 'grandchild1', 'greatgrandchild1', 'child3',
+                                                                  'grandchild3']
+
+    def test_remove_children(self):
+        self.root.remove_children()
+        assert self.root.get_children() == []
+        assert self.child1.name == 'child1'
+
+    def test_tree_representation_wrong_space(self):
+        with self.assertRaises(TypeError):
+            self.root.get_tree_representation(space=None)
+        with self.assertRaises(ValueError):
+            self.root.get_tree_representation(space=0)
 
 class TestNodeReturnValue(TestCase):
 
@@ -166,3 +216,17 @@ class TestNodeReturnValue(TestCase):
     def test_wrong_type(self):
         with self.assertRaises(TypeError):
             grandchild1.get_self_with_key(key=1)
+
+
+class TestTwoTypesOfChildren(TestCase):
+    def setUp(self) -> None:
+        self.root = A(name='root_a')
+        self.ach1 = self.root.add_child(A(name='b_child_1'))
+        self.bch1 = self.root.add_child(B(name='a_child_1'))
+        self.ach2 = self.root.add_child(A(name='b_child_2'))
+        self.bch2 = self.root.add_child(B(name='a_child_2'))
+
+    def test_get_children_of_type(self):
+        assert self.root.get_children() == [self.ach1, self.bch1, self.ach2, self.bch2]
+        assert self.root.get_children_of_type(A) == [self.ach1, self.ach2]
+        assert self.root.get_children_of_type(B) == [self.bch1, self.bch2]
