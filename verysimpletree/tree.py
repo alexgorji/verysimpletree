@@ -210,7 +210,7 @@ class Tree(ABC, Generic[T]):
         leaves: list[T] = list(self.iterate_leaves())
         return max(leaves, key=lambda leaf: leaf.get_distance())
 
-    def get_layer(self, level: int, key: Optional[Callable[['Tree[Any]'], Any]] = None) -> list[T]:
+    def get_layer(self, level: int, key: Optional[Callable[[T], Any]] = None) -> list[T]:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -239,7 +239,7 @@ class Tree(ABC, Generic[T]):
         else:
             return [key(child) for child in output]
 
-    def get_leaves(self, key: Optional[Callable[['Tree[Any]'], Any]] = None) -> list[Union[Any, list[Any]]]:
+    def get_leaves(self, key: Optional[Callable[[T], Any]] = None) -> list[Union[Any, list[Any]]]:
         """
         Tree method
 
@@ -261,9 +261,9 @@ class Tree(ABC, Generic[T]):
                     output.append(child)
         if not output:
             if key is not None:
-                return [key(self)]
+                return [key(cast(T, self))]
             else:
-                return [cast(list[Any], self)]
+                return [cast(T, self)]
         return output
 
     def get_level(self) -> int:
@@ -360,17 +360,17 @@ class Tree(ABC, Generic[T]):
             parent = node.get_parent()
         return node
 
-    def get_self_with_key(self, key: Optional[Callable[['Tree[Any]'], Any]] = None) -> Any:
+    def get_self_with_key(self, key: Optional[Callable[[T], Any]] = None) -> Any:
         if key is None:
             return self
         elif isinstance(key, str):
             return getattr(self, key)
         elif callable(key):
-            return key(self)
+            return key(cast(T, self))
         else:
             raise TypeError(f'{self.__class__}: key: {key} must be None, string or a callable object')
 
-    def get_tree_representation(self, key: Optional[Callable[['Tree[Any]'], Any]] = None, space: int = 3) -> str:
+    def get_tree_representation(self, key: Optional[Callable[[T], Any]] = None, space: int = 3) -> str:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -393,7 +393,7 @@ class Tree(ABC, Generic[T]):
 
         tree_representation = TreeRepresentation(tree=self, space=space)
         if key:
-            tree_representation.key = key
+            tree_representation.key = cast(Callable[[Tree[Any]], Any], key)
         return tree_representation.get_representation()
 
     def get_number_of_layers(self) -> int:
@@ -408,7 +408,7 @@ class Tree(ABC, Generic[T]):
         else:
             return distance
 
-    def filter_nodes(self, key: Callable[['Tree[Any]'], Any], return_value: Any) -> list[T]:
+    def filter_nodes(self, key: Callable[[T], Any], return_value: Any) -> list[T]:
         """
         :obj:`~tree.tree.Tree` method
 

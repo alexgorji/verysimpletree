@@ -40,7 +40,7 @@ class B(Tree[Any]):
         self.name = name
         self.content = BContent(value=10)
 
-    def _check_child_to_be_added(self, child):
+    def _check_child_to_be_added(self, child):  # pragma: no cover
         if not isinstance(child, Tree):
             raise TypeError
 
@@ -197,6 +197,7 @@ class TestTree(TestCase):
             self.root.get_tree_representation(space=None)
         with self.assertRaises(ValueError):
             self.root.get_tree_representation(space=0)
+
 
 class TestNodeReturnValue(TestCase):
 
