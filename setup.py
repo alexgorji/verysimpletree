@@ -4,7 +4,7 @@ from pathlib import Path
 long_description = (Path(__file__).parent / "README.rst").read_text()
 setuptools.setup(
     name="verysimpletree",
-    version="0.1.2beta",
+    version="0.1.3beta",
     author="Alex Gorji",
     author_email="aligorji@hotmail.com",
     description="lightweight tree data structure for musicxml and musicscore",
