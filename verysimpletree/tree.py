@@ -71,6 +71,14 @@ class Tree(ABC, Generic[T]):
         self._content = value
 
     @property
+    def is_first_child(self) -> bool:
+        if self.is_root:
+            return True
+        if cast(T, self.up).get_children()[0] == self:
+            return True
+        return False
+
+    @property
     def is_last_child(self) -> bool:
         """
         >>> t = TestTree('root')

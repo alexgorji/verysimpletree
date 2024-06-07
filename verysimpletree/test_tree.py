@@ -65,6 +65,14 @@ class TestTree(TestCase):
             else:
                 assert not node.is_last_child
 
+    def test_is_first_child(self):
+        t = self.root
+        for node in t.traverse():
+            if node.name in ['root', 'child1', 'grandchild1', 'grandchild3', 'greatgrandchild1']:
+                assert node.is_first_child
+            else:
+                assert not node.is_first_child
+
     def test_get_root(self):
         assert self.greatgrandchild1.get_root() == self.root
         assert self.child4.get_root() == self.root
