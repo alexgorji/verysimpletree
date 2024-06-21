@@ -218,7 +218,7 @@ class Tree(ABC, Generic[T]):
         leaves: list[T] = list(self.iterate_leaves())
         return max(leaves, key=lambda leaf: leaf.get_distance())
 
-    def get_layer(self, level: int, key: Optional[Callable[[T], Any]] = None) -> list[T]:
+    def get_layer(self: T, level: int, key: Optional[Callable[[T], Any]] = None) -> Any:
         """
         :obj:`~tree.tree.Tree` method
 
@@ -228,10 +228,10 @@ class Tree(ABC, Generic[T]):
                  following layers.
         :rtype: list
         """
-        output: list[T]
+        output: Any
 
         if level == 0:
-            output = [cast(T, self)]
+            output = [self]
         elif level == 1:
             output = self.get_children()
         else:
@@ -245,7 +245,10 @@ class Tree(ABC, Generic[T]):
         if key is None:
             return output
         else:
-            return [key(child) for child in output]
+            if level == 0:
+                return key(output)
+            else:
+                return [key(child) for child in output]
 
     def get_leaves(self, key: Optional[Callable[[T], Any]] = None) -> list[Union[Any, list[Any]]]:
         """
