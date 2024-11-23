@@ -1,0 +1,28 @@
+[tool.poetry]
+name="verysimpletree"
+version="0.1.7beta"
+description = "lightweight tree data structure for musicxml and musicscore"
+authors = ["Alex Gorji <aligorji@hotmail.com>"]
+license = "MIT"
+homepage = "https://github.com/alexgorji/verysimpletree.git"
+repository = "https://github.com/alexgorji/verysimpletree.git"
+readme = "README.md"
+include = ["verysimpletree/py.typed"]
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent"
+]
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.13"
+
+[tool.poetry.group.test.dependencies]
+mypy = "^1.13.0"
+pytest-xdist = "^3.6.1"
+pytest-cov = "^6.0.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
