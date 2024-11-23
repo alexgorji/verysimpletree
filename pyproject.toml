@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "verysimpletree"
+version = "0.1.6beta"
+description = "lightweight tree data structure for musicxml and musicscor"
+authors = ["Alex Gorji <aligorji@hotmail.com>"]
+license = "mit"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.13"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
