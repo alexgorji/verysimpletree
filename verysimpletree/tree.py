@@ -21,8 +21,8 @@ class Tree(ABC, Generic[T]):
     """
     An abstract lightweight tree class for managing tree structures in MusicXML and musicscore packages.
     """
-    _TREE_ATTRIBUTES = {'compact_repr', 'is_leaf', 'is_last_child', 'is_root', '_parent', '_children',
-                        'up'}
+    _TREE_ATTRIBUTES = {'is_leaf', 'is_last_child', 'is_root', '_parent', '_children',
+                        'up', 'content'}
 
     def __init__(self, content: Any = None, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -385,7 +385,7 @@ class Tree(ABC, Generic[T]):
         """
         :obj:`~tree.tree.Tree` method
 
-        :param key: An optional callable if ``None`` :obj:`~compact_repr` property of each node is called.
+        :param key: An optional callable if ``None`` string(node) is called.
         :return: a representation of all nodes as string in tree form.
 
         >>> print(root.get_tree_representation())
