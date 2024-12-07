@@ -1,6 +1,6 @@
 [tool.poetry]
 name="verysimpletree"
-version="0.1.7beta"
+version="1.0"
 description = "lightweight tree data structure for musicxml and musicscore"
 authors = ["Alex Gorji <aligorji@hotmail.com>"]
 license = "MIT"
