@@ -15,8 +15,8 @@ class BContent:
 
 
 class A(Tree[Any]):
-    def __init__(self, name, parent=None, *args, **keyword):
-        super().__init__(*args, **keyword)
+    def __init__(self, name, parent=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._children = []
         self._parent = parent
         self.name = name
@@ -35,8 +35,8 @@ class A(Tree[Any]):
 
 
 class B(Tree[Any]):
-    def __init__(self, name, *args, **keyword):
-        super().__init__(*args, **keyword)
+    def __init__(self, name, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.name = name
         self.content = BContent(value=10)
 
@@ -44,8 +44,17 @@ class B(Tree[Any]):
         if not isinstance(child, Tree):
             raise TypeError
 
+class C(Tree[Any]):
+    def __init__(self, name, value, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.name = name
+        self.value = value
 
-class TestTree(TestCase):
+    def _check_child_to_be_added(self, child):  # pragma: no cover
+        if not isinstance(child, Tree):
+            raise TypeError
+
+class TreeTestCase(TestCase):
     def setUp(self) -> None:
         self.root = A(name='root')
         self.child1 = self.root.add_child_by_name('child1')
@@ -57,6 +66,7 @@ class TestTree(TestCase):
         self.grandchild3 = self.child4.add_child_by_name('grandchild3')
         self.greatgrandchild1 = self.grandchild2.add_child_by_name('greatgrandchild1')
 
+class Test(TreeTestCase):
     def test_is_last_child(self):
         t = self.root
         for node in t.traverse():
@@ -205,6 +215,52 @@ class TestTree(TestCase):
             self.root.get_tree_representation(space=None)
         with self.assertRaises(ValueError):
             self.root.get_tree_representation(space=0)
+
+    def test_get_tree_representation(self):
+        expected = """└── root
+    ├── child1
+    ├── child2
+    │   ├── grandchild1
+    │   └── grandchild2
+    │       └── greatgrandchild1
+    ├── child3
+    └── child4
+        └── grandchild3
+"""
+
+        assert self.root.get_tree_representation() == expected
+
+
+class TreeListRepresentationTestCase(TreeTestCase):
+
+    def test_get_list_representation_all(self):
+        assert self.root.get_list_representation(key=lambda node: node.name) == ['root', ['child1'], ['child2', ['grandchild1'], ['grandchild2', ['greatgrandchild1']]], ['child3'], ['child4', ['grandchild3']]]
+
+    def test_get_list_representation_only_root(self):
+        a = A(name='root')
+        assert a.get_list_representation(key=lambda node: node.name) == ['root']
+
+    def test_create_tree_from_list(self):
+        tree = A.create_tree_from_list(self.root.get_list_representation(key=lambda node: node.name), 'name')
+        assert tree.get_list_representation(key=lambda node: node.name) == self.root.get_list_representation(key=lambda node: node.name)
+
+    def test_create_tree_from_list_only_root(self):
+        tree = A.create_tree_from_list(self.root.get_list_representation(key=lambda node: node.name), 'name')
+        assert tree.get_list_representation(key=lambda node: node.name) == self.root.get_list_representation(key=lambda node: node.name)
+
+    def test_create_tree_from_list_with_name_and_value(self):
+        def _copy_node(node, current_value):
+            copied = C(name=node.name, value=current_value)
+            current_value += 1
+            for child in node.get_children():
+                copied.add_child(_copy_node(child, current_value=current_value))
+            return copied
+        
+        copied_c = _copy_node(self.root, 0)
+        representation = copied_c.get_list_representation(key=lambda node: [node.name, node.value])
+        assert representation == [['root', 0], [['child1', 1]], [['child2', 1], [['grandchild1', 2]], [['grandchild2', 2], [['greatgrandchild1', 3]]]], [['child3', 1]], [['child4', 1], [['grandchild3', 2]]]]
+        tree = C.create_tree_from_list(representation, ['name', 'value'])
+        assert tree.get_list_representation(key=lambda node: [node.name, node.value]) == copied_c.get_list_representation(key=lambda node: [node.name, node.value])
 
 
 class TestNodeReturnValue(TestCase):

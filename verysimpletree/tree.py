@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Callable, Iterator, TypeVar, Any, Generic, cast, Union
 
+from verysimpletree.util import make_list
+
 
 class TreeException(Exception):
     pass
@@ -167,7 +169,22 @@ class Tree(ABC, Generic[T]):
         if self._is_leaf is True:
             self._is_leaf = False
         return child
-
+    
+    # typing with T and Generic[T] etc. seems to be faulty. Return value of _create_node is Tree[T].
+    @classmethod
+    def create_tree_from_list(cls, tree_list_representation: list[list[Any]], represented_attribute_names: list[str]) -> T:
+        represented_attribute_names = make_list(represented_attribute_names)
+        def _create_node(represented_values: list[Any]) -> T:
+            if len(represented_values) != len(represented_attribute_names):
+                raise ValueError(f'create_tree_from_list: represented_attribute_names must be of length {len(represented_values)}.')
+            root_kwargs = {attr:val for attr, val in zip(represented_attribute_names, represented_values)}
+            return cast(T, cls(**root_kwargs))
+        node = _create_node(make_list(tree_list_representation[0]))
+        for child_list_representation in tree_list_representation [1:]:
+            child = cls.create_tree_from_list(child_list_representation, represented_attribute_names)
+            node.add_child(child)
+        return node
+    
     def get_children(self: T) -> list[T]:
         """
         :obj:`~tree.tree.Tree` method
@@ -406,6 +423,12 @@ class Tree(ABC, Generic[T]):
         if key:
             tree_representation.key = cast(Callable[[Tree[Any]], Any], key)
         return tree_representation.get_representation()
+    
+    def get_list_representation(self, key: Callable[["Tree[T]"], Any]) -> list[list[Any]]:
+        result: list[list[Any]] = [key(self)]
+        for child in self.get_children():
+            result.append(child.get_list_representation(key=key))
+        return result
 
     def get_number_of_layers(self) -> int:
         """
