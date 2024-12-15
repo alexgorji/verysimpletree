@@ -43,7 +43,7 @@ class Tree(ABC, Generic[T]):
 
     def _raw_traverse(self: T) -> Iterator[T]:
         yield self
-        for child in self.get_children():
+        for child in self._children:
             for node in child._raw_traverse():
                 yield node
 
@@ -76,7 +76,7 @@ class Tree(ABC, Generic[T]):
     def is_first_child(self) -> bool:
         if self.is_root:
             return True
-        if cast(T, self.up).get_children()[0] == self:
+        if cast(T, self.up)._children[0] == self:
             return True
         return False
 
@@ -92,7 +92,7 @@ class Tree(ABC, Generic[T]):
         """
         if self.is_root:
             return True
-        if cast(T, self.up).get_children()[-1] == self:
+        if cast(T, self.up)._children[-1] == self:
             return True
         return False
 
@@ -124,8 +124,8 @@ class Tree(ABC, Generic[T]):
         :return: next sibling. ``None`` if this is the last current child of the parent.
         :rtype: :obj:`~tree.tree.Tree`
         """
-        if self.up and self != self.up.get_children()[-1]:
-            return cast(T, self.up.get_children()[self.up.get_children().index(self) + 1])
+        if self.up and self != self.up._children[-1]:
+            return cast(T, self.up._children[self.up._children.index(self) + 1])
         else:
             return None
 
@@ -137,8 +137,8 @@ class Tree(ABC, Generic[T]):
         :return: previous sibling. ``None`` if this is the first child of the parent.
         :rtype: :obj:`~tree.tree.Tree`
         """
-        if self.up and self != self.up.get_children()[0]:
-            return cast(T, self.up.get_children()[self.up.get_children().index(self) - 1])
+        if self.up and self != self.up._children[0]:
+            return cast(T, self.up._children[self.up._children.index(self) - 1])
         else:
             return None
 
@@ -200,7 +200,7 @@ class Tree(ABC, Generic[T]):
         :return: list of added children of type.d
         :rtype: list[:obj:`~tree.tree.Tree`]
         """
-        return [cast(T, ch) for ch in self.get_children() if isinstance(ch, type_)]
+        return [cast(T, ch) for ch in self._children if isinstance(ch, type_)]
 
     def get_distance(self, reference: Optional[T] = None) -> int:
         """
@@ -250,14 +250,14 @@ class Tree(ABC, Generic[T]):
         if level == 0:
             output = [self]
         elif level == 1:
-            output = self.get_children()
+            output = self._children
         else:
             output = []
             for child in self.get_layer(level - 1):
                 if child.is_leaf:
                     output.append(child)
                 else:
-                    output.extend(child.get_children())
+                    output.extend(child._children)
 
         if key is None:
             return output
@@ -279,7 +279,7 @@ class Tree(ABC, Generic[T]):
         """
         output: list[Union[Any, list[Any]]] = []
         child: T
-        for child in self.get_children():
+        for child in self._children:
             if not child.is_leaf:
                 output.append(child.get_leaves(key=key))
             else:
@@ -350,9 +350,9 @@ class Tree(ABC, Generic[T]):
         if parent is None:
             return '0'
         elif self.get_level() == 1:
-            return str(parent.get_children().index(self) + 1)
+            return str(parent._children.index(self) + 1)
         else:
-            return f"{parent.get_position_in_tree()}.{parent.get_children().index(self) + 1}"
+            return f"{parent.get_position_in_tree()}.{parent._children.index(self) + 1}"
 
     def get_reversed_path_to_root(self) -> list[T]:
         """
@@ -426,7 +426,7 @@ class Tree(ABC, Generic[T]):
     
     def get_list_representation(self, key: Callable[["Tree[T]"], Any]) -> list[list[Any]]:
         result: list[list[Any]] = [key(self)]
-        for child in self.get_children():
+        for child in self._children:
             result.append(child.get_list_representation(key=key))
         return result
 
@@ -476,10 +476,10 @@ class Tree(ABC, Generic[T]):
         :param child:
         :return: None
         """
-        if child not in self.get_children():
+        if child not in self._children:
             raise ChildNotFoundError
         child._parent = None
-        self.get_children().remove(child)
+        self._children.remove(child)
         self._reset_iterators()
 
     def remove_children(self) -> None:
@@ -490,7 +490,7 @@ class Tree(ABC, Generic[T]):
 
         :return: None
         """
-        for child in self.get_children()[:]:
+        for child in self._children[:]:
             parent = child.get_parent()
             if parent is not None:
                 parent.remove(child)
@@ -505,16 +505,16 @@ class Tree(ABC, Generic[T]):
         :return: None
         """
         if hasattr(old, '__call__'):
-            list_of_olds = [ch for ch in self.get_children() if old(ch)]
+            list_of_olds = [ch for ch in self._children if old(ch)]
         else:
-            list_of_olds = [ch for ch in self.get_children() if ch == old]
+            list_of_olds = [ch for ch in self._children if ch == old]
         if not list_of_olds:
             raise ValueError(f"{old} not in list.")
         self._check_child_to_be_added(new)
-        old_index = self.get_children().index(list_of_olds[index])
-        old_child = self.get_children()[old_index]
-        self.get_children().remove(old_child)
-        self.get_children().insert(old_index, new)
+        old_index = self._children.index(list_of_olds[index])
+        old_child = self._children[old_index]
+        self._children.remove(old_child)
+        self._children.insert(old_index, new)
         old_child._parent = None
         self._reset_iterators()
         new._parent = self
