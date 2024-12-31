@@ -167,7 +167,12 @@ class Test(TreeTestCase):
                                           self.grandchild3]
 
     def test_get_farthest_leaf(self):
-        pass
+        self.assertEqual(self.root.get_farthest_leaf(), self.greatgrandchild1)
+        self.assertEqual(self.child1.get_farthest_leaf(), self.child1)
+        self.assertEqual(self.child2.get_farthest_leaf(), self.greatgrandchild1)
+        self.assertEqual(self.child3.get_farthest_leaf(), self.child3)
+        self.assertEqual(self.child4.get_farthest_leaf(), self.grandchild3)
+        self.assertEqual(self.grandchild2.get_farthest_leaf(), self.greatgrandchild1)   
 
     def test_find_grandchild(self):
         assert [n for n in self.root.traverse() if n.get_level() == 2] == [self.grandchild1, self.grandchild2,
@@ -184,6 +189,36 @@ class Test(TreeTestCase):
     def test_get_wrong_distance(self):
         with self.assertRaises(TreeReferenceError):
             assert self.greatgrandchild1.get_distance(self.child1) == 'bla'
+
+    def test_get_distance(self):
+        self.assertEqual(self.root.get_distance(self.root), 0)
+        self.assertEqual(self.root.get_distance(self.child1), 1)
+        self.assertEqual(self.root.get_distance(self.child2), 1)
+        self.assertEqual(self.root.get_distance(self.child3), 1)
+        self.assertEqual(self.root.get_distance(self.child4), 1)
+        self.assertEqual(self.root.get_distance(self.grandchild1), 2)
+        self.assertEqual(self.root.get_distance(self.grandchild2), 2)
+        self.assertEqual(self.root.get_distance(self.grandchild3), 2)
+        self.assertEqual(self.root.get_distance(self.greatgrandchild1), 3)
+
+        self.assertEqual(self.child1.get_distance(self.child1), 0)
+        self.assertEqual(self.child1.get_distance(self.root), 1)
+
+        self.assertEqual(self.child2.get_distance(self.child2), 0)
+        self.assertEqual(self.child2.get_distance(self.root), 1)
+        self.assertEqual(self.child2.get_distance(self.grandchild1), 1)
+        self.assertEqual(self.child2.get_distance(self.grandchild2), 1)
+        self.assertEqual(self.child2.get_distance(self.greatgrandchild1), 2)
+
+
+        self.assertEqual(self.child3.get_distance(self.child3), 0)
+        self.assertEqual(self.child3.get_distance(self.root), 1)
+
+        self.assertEqual(self.child4.get_distance(self.child4), 0)
+        self.assertEqual(self.child4.get_distance(self.root), 1)
+        self.assertEqual(self.child4.get_distance(self.grandchild3), 1)
+
+
 
     def test_get_farthest_leave_of_root_without_children(self):
         root = A('root')
@@ -229,6 +264,15 @@ class Test(TreeTestCase):
 """
 
         assert self.root.get_tree_representation() == expected
+        
+    def test_get_number_of_layers(self):
+        self.assertEqual(self.root.get_number_of_layers(), 3)
+        self.assertEqual(self.child1.get_number_of_layers(), 0)
+        self.assertEqual(self.child2.get_number_of_layers(), 2)
+        self.assertEqual(self.child4.get_number_of_layers(), 1)
+        self.assertEqual(self.grandchild1.get_number_of_layers(), 0)
+        self.assertEqual(self.grandchild2.get_number_of_layers(), 1)
+        self.assertEqual(self.greatgrandchild1.get_number_of_layers(), 0)
 
 
 class TreeListRepresentationTestCase(TreeTestCase):

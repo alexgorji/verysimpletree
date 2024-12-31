@@ -211,21 +211,29 @@ class Tree(ABC, Generic[T]):
         >>> greatgrandchild1.get_distance(child2)
         2
         """
-
-        if self.is_root:
-            return 0
-
-        if reference is None:
+        if not reference:
             reference = self.get_root()
 
-        parent = self.up
-        count = 1
-        while parent is not None and parent is not reference:
-            parent = parent.up
-            count += 1
-            if parent is not None and parent.is_root and parent is not reference:
-                raise TreeReferenceError(f"Wrong reference {reference} not in path to root.")
-        return count
+        if reference == self:
+            return 0
+        
+        count = 0
+
+        for node in self.get_reversed_path_to_root():
+            if node == reference:
+                return count
+            else:
+                count += 1
+        
+        count = 0
+        for node in reference.get_reversed_path_to_root():
+            print(node)
+            if node == self:
+                return count
+            else:
+                count += 1
+
+        raise TreeReferenceError(f"Wrong reference {reference} not in path to root.")
 
     def get_farthest_leaf(self: T) -> T:
         """
@@ -233,7 +241,7 @@ class Tree(ABC, Generic[T]):
         greatgrandchild1
         """
         leaves: list[T] = list(self.iterate_leaves())
-        return max(leaves, key=lambda leaf: leaf.get_distance())
+        return max(leaves, key=lambda leaf: leaf.get_distance(self))
 
     def get_layer(self: T, level: int, key: Optional[Callable[[T], Any]] = None) -> Any:
         """
